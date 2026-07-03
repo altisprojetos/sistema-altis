@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+:root {
+  --ink-900: #0A2238;
+  --ink-800: #0F2C44;
+  --ink-700: #193A57;
+  --paper-0: #F8F9F7;
+  --paper-50: #EEF1EF;
+  --paper-100: #E2E7E3;
+  --signal-500: #F2480A;
+  --signal-600: #D43D06;
+  --signal-100: #FDE3D6;
+  --steel-400: #6E7A86;
+  --steel-200: #C7CED2;
+  --facet: 14px;
+
+  --font-display: 'Big Shoulders Display', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--paper-0);
+  color: var(--ink-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display { font-family: var(--font-display); }
+.font-mono    { font-family: var(--font-mono); }
+
+.facet-tl {
+  clip-path: polygon(var(--facet) 0, 100% 0, 100% 100%, 0 100%, 0 var(--facet));
+}
+.facet-br {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--facet)), calc(100% - var(--facet)) 100%, 0 100%);
+}

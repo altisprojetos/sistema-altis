@@ -1,0 +1,361 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  VENDEDOR
+  OPERADOR
+  FINANCEIRO
+}
+
+enum SalesStage {
+  PROSPECCAO
+  SERVICO_FECHADO
+  DOCUMENTACAO_COLETADA
+  ENVIADO_OPERACAO
+  DEVOLVIDO_PENDENCIAS
+}
+
+enum OpsStage {
+  A_INICIAR
+  ELABORAR
+  ANALISE
+  DEVOLVIDO
+  PARALISADO
+  FINALIZADO
+}
+
+enum TaskStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+enum CommissionStatus {
+  PENDENTE
+  PAGA
+}
+
+enum ContractMethod {
+  ZAPSIGN
+  FISICO
+}
+
+enum ContractStatus {
+  PENDENTE
+  ASSINADO
+}
+
+enum PaymentMethod {
+  AVISTA
+  PARCELADO
+}
+
+enum ClientType {
+  RURAL
+  URBANO
+}
+
+enum CostType {
+  FIXO
+  VARIAVEL
+}
+
+enum CostOwner {
+  EMPRESA
+  CLIENTE
+}
+
+enum CostApprovalStatus {
+  PENDENTE
+  APROVADO
+  REJEITADO
+}
+
+enum EntryType {
+  ENTRADA
+  SAIDA
+}
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  password       String
+  roles          Role[]
+  commissionRate Float    @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  processesSold     Process[]       @relation("Seller")
+  processesAnalyzed Process[]       @relation("Analyst")
+  clientNotes       ClientNote[]
+  timelineEntries   TimelineEntry[]
+  tasksAssigned     Task[]          @relation("AssignedTo")
+  tasksCreated      Task[]          @relation("CreatedBy")
+  taskComments      TaskComment[]
+  commissions       Commission[]
+  clientsSold       Client[]
+  costs             Cost[]    @relation("CostCreator")
+  approvedCosts     Cost[]    @relation("CostApprover")
+}
+
+model Client {
+  id           String     @id @default(cuid())
+  name         String
+  document     String?
+  phone        String?
+  email        String?
+  address      String?
+  type         ClientType @default(RURAL)
+  farmName      String?
+  municipality  String?
+  areaHa        Float?
+  latitude      Float?
+  longitude     Float?
+  propertyCount Int     @default(1)
+  sellerId      String
+  seller       User       @relation(fields: [sellerId], references: [id])
+  notes        ClientNote[]
+  processes    Process[]
+  properties   ClientProperty[]
+  createdAt    DateTime   @default(now())
+}
+
+model ClientProperty {
+  id            String  @id @default(cuid())
+  clientId      String
+  index         Int
+  farmName      String?
+  municipality  String?
+  areaHa        Float?
+  latitude      Float?
+  longitude     Float?
+  streetAddress String?
+  neighborhood  String?
+  city          String?
+  state         String?
+  cep           String?
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  services      ProcessService[]
+}
+
+model ClientNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Process {
+  id         String     @id @default(cuid())
+  clientId   String
+  sellerId   String
+  analystId  String?
+  salesStage SalesStage @default(PROSPECCAO)
+  opsStage   OpsStage?
+
+  totalValue            Float?
+  negotiatedValue       Float?
+  negotiationReason     String?
+  paymentMethod         PaymentMethod?
+  installments          Int?
+  expectedCompletionDate DateTime?
+
+  contractStatus   ContractStatus @default(PENDENTE)
+  contractMethod   ContractMethod?
+  contractFileUrl  String?
+  contractSignedAt DateTime?
+
+  bankPaymentStartDate DateTime?
+  bankPaymentCount     Int?
+  bankPaymentInterval  String?
+
+  sentToOpsAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  client      Client           @relation(fields: [clientId], references: [id])
+  seller      User             @relation("Seller", fields: [sellerId], references: [id])
+  analyst     User?            @relation("Analyst", fields: [analystId], references: [id])
+  services    ProcessService[]
+  documents   Document[]
+  devolutions Devolution[]
+  timeline    TimelineEntry[]
+  reminders   Reminder[]
+  tasks       Task[]
+  commissions Commission[]
+  prospections Prospection[]
+  bankReminders BankPaymentReminder[]
+  costs       Cost[]
+}
+
+model ProcessService {
+  id              String  @id @default(cuid())
+  processId       String
+  serviceGroup    String
+  serviceKey      String
+  serviceName     String
+  subtype         String?
+  hectares        Float?
+  squareMeters    Float?
+  confrontantes   Int?
+  financedValue   Float?
+  calculatedValue Float?
+  negotiatedValue Float?
+  negotiationReason String?
+  clientPropertyId  String?
+  process         Process         @relation(fields: [processId], references: [id], onDelete: Cascade)
+  clientProperty  ClientProperty? @relation(fields: [clientPropertyId], references: [id])
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  processId     String
+  docNumber     Int
+  docName       String
+  fileName      String
+  url           String
+  description   String?
+  propertyIndex Int      @default(0)
+  uploadedAt    DateTime @default(now())
+  uploadedBy    String
+  process       Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+}
+
+model Devolution {
+  id         String    @id @default(cuid())
+  processId  String
+  pendencies String
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  process    Process   @relation(fields: [processId], references: [id], onDelete: Cascade)
+}
+
+model TimelineEntry {
+  id        String   @id @default(cuid())
+  processId String
+  userId    String
+  stage     String
+  content   String
+  createdAt DateTime @default(now())
+  process   Process  @relation(fields: [processId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Reminder {
+  id          String    @id @default(cuid())
+  processId   String
+  institution String
+  description String
+  dueDate     DateTime
+  done        Boolean   @default(false)
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  process     Process   @relation(fields: [processId], references: [id], onDelete: Cascade)
+}
+
+model BankPaymentReminder {
+  id          String    @id @default(cuid())
+  processId   String
+  dueDate     DateTime
+  notifiedAt  DateTime?
+  confirmed   Boolean   @default(false)
+  confirmedAt DateTime?
+  createdAt   DateTime  @default(now())
+  process     Process   @relation(fields: [processId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  processId    String
+  title        String
+  description  String?
+  createdById  String
+  assignedToId String
+  status       TaskStatus @default(PENDENTE)
+  dueDate      DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  process      Process    @relation(fields: [processId], references: [id], onDelete: Cascade)
+  createdBy    User       @relation("CreatedBy", fields: [createdById], references: [id])
+  assignedTo   User       @relation("AssignedTo", fields: [assignedToId], references: [id])
+  comments     TaskComment[]
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Commission {
+  id        String           @id @default(cuid())
+  userId    String
+  processId String
+  amount    Float
+  status    CommissionStatus @default(PENDENTE)
+  paidAt    DateTime?
+  paidById  String?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id])
+  process   Process          @relation(fields: [processId], references: [id], onDelete: Cascade)
+}
+
+model Cost {
+  id          String   @id @default(cuid())
+  description String
+  amount      Float
+  type        CostType
+  month       Int
+  year        Int
+  category    String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  processId      String?
+  userId         String?
+  owner          CostOwner          @default(EMPRESA)
+  approvalStatus CostApprovalStatus @default(PENDENTE)
+  receiptUrl     String?
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectionReason String?
+  process        Process?  @relation(fields: [processId], references: [id], onDelete: SetNull)
+  user           User?     @relation("CostCreator", fields: [userId], references: [id], onDelete: SetNull)
+  approvedBy     User?     @relation("CostApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+}
+
+model AccountEntry {
+  id          String    @id @default(cuid())
+  description String
+  amount      Float
+  type        EntryType
+  category    String?
+  date        DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+}
+
+model Prospection {
+  id              String    @id @default(cuid())
+  processId       String
+  sellerId        String
+  notes           String?
+  dismissed       Boolean   @default(false)
+  dismissedAt     DateTime?
+  nextContactDate DateTime?
+  createdAt       DateTime  @default(now())
+  process         Process   @relation(fields: [processId], references: [id], onDelete: Cascade)
+}
