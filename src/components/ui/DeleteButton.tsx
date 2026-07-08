@@ -27,7 +27,7 @@ export function DeleteButton({
       <div className="flex items-center gap-2 px-3 py-2 border rounded" style={{ borderColor: "#fca5a5", background: "#fff5f5" }}>
         <span className="text-xs" style={{ color: "#991b1b" }}>{confirmMessage}</span>
         <button
-          onClick={() => startTransition(() => action())}
+          onClick={() => startTransition(async () => { await action(); })}
           className="px-3 py-1 text-xs font-bold uppercase tracking-wider rounded cursor-pointer"
           style={{ background: "#dc2626", color: "white" }}
         >
