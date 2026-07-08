@@ -307,7 +307,7 @@ export default async function ProcessoDetalhePage({
                 docNums={docNums}
                 docNames={DOCUMENT_NAMES}
                 uploadedDocs={process.documents ?? []}
-                editable={canEditSales && process.salesStage === "DOCUMENTACAO_COLETADA"}
+                editable={canEditSales && (process.salesStage === "DOCUMENTACAO_COLETADA" || process.salesStage === "DEVOLVIDO_PENDENCIAS")}
               />
             </div>
           )}
