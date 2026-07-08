@@ -51,6 +51,7 @@ function Field({
   required,
   value,
   onChange,
+  step,
 }: {
   label: string;
   name?: string;
@@ -59,6 +60,7 @@ function Field({
   required?: boolean;
   value?: string;
   onChange?: (v: string) => void;
+  step?: string;
 }) {
   const isControlled = onChange !== undefined;
   return (
@@ -71,6 +73,7 @@ function Field({
         type={type}
         placeholder={placeholder}
         required={required}
+        step={step}
         value={isControlled ? value : undefined}
         defaultValue={!isControlled ? value : undefined}
         onChange={isControlled ? (e) => onChange(e.target.value) : undefined}
@@ -93,9 +96,9 @@ function RuralBlock({ prop, index, onChange }: { prop: PropState; index: number;
         <Field label="Município" placeholder="Ex: Nanuque" value={prop.municipality} onChange={(v) => onChange("municipality", v)} />
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <Field label="Área (hectares)" type="number" placeholder="0.00" value={prop.areaHa} onChange={(v) => onChange("areaHa", v)} />
-        <Field label="Latitude" type="number" placeholder="-17.8400" value={prop.latitude} onChange={(v) => onChange("latitude", v)} />
-        <Field label="Longitude" type="number" placeholder="-40.3600" value={prop.longitude} onChange={(v) => onChange("longitude", v)} />
+        <Field label="Área (hectares)" type="number" placeholder="0.00" step="any" value={prop.areaHa} onChange={(v) => onChange("areaHa", v)} />
+        <Field label="Latitude" type="number" placeholder="-17.8400" step="any" value={prop.latitude} onChange={(v) => onChange("latitude", v)} />
+        <Field label="Longitude" type="number" placeholder="-40.3600" step="any" value={prop.longitude} onChange={(v) => onChange("longitude", v)} />
       </div>
       {/* Hidden inputs for FormData */}
       {prop.id && <input type="hidden" name={`prop_${index}_id`} value={prop.id} />}

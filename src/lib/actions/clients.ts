@@ -162,6 +162,22 @@ export async function addClientNote(clientId: string, content: string) {
   return { success: true };
 }
 
+export async function deleteClient(clientId: string) {
+  const session = await auth();
+  if (!session) redirect("/login");
+  if (!session.user.roles.includes("ADMIN")) return { error: "Sem permissão" };
+
+  await prisma.$transaction(async (tx) => {
+    // Process cascades its own children (ProcessService, Document, etc.)
+    await tx.process.deleteMany({ where: { clientId } });
+    await tx.clientNote.deleteMany({ where: { clientId } });
+    await tx.client.delete({ where: { id: clientId } });
+  });
+
+  revalidatePath("/dashboard/clientes");
+  redirect("/dashboard/clientes");
+}
+
 export async function getClients(search?: string) {
   const session = await auth();
   if (!session) return [];

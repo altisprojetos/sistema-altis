@@ -4,6 +4,20 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SalesStage, OpsStage, ContractMethod, ContractStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+export async function deleteProcess(processId: string) {
+  const session = await auth();
+  if (!session) redirect("/login");
+  if (!session.user.roles.includes("ADMIN")) return { error: "Sem permissão" };
+
+  // All children (ProcessService, Document, Devolution, TimelineEntry,
+  // Reminder, BankPaymentReminder, Task, Commission, Prospection) cascade.
+  await prisma.process.delete({ where: { id: processId } });
+
+  revalidatePath("/dashboard/vendas");
+  redirect("/dashboard/vendas");
+}
 
 export async function getOperacaoProcesses(filters?: { opsStage?: OpsStage; search?: string }) {
   const session = await auth();

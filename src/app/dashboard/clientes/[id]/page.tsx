@@ -1,4 +1,4 @@
-import { getClientById } from "@/lib/actions/clients";
+import { getClientById, deleteClient } from "@/lib/actions/clients";
 import { addClientNote } from "@/lib/actions/clients";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import PageHeader from "@/components/ui/PageHeader";
 import { Card, CardLabel } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
+import { DeleteButton } from "@/components/ui/DeleteButton";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Link from "next/link";
@@ -86,6 +87,13 @@ export default async function ClienteDetailPage({
         />
         {!session.user.roles.includes("FINANCEIRO") && (
           <div className="flex gap-2 flex-shrink-0 mt-1">
+            {session.user.roles.includes("ADMIN") && (
+              <DeleteButton
+                action={deleteClient.bind(null, client.id)}
+                label="Apagar"
+                confirmMessage={`Apagar o cliente "${client.name}" e todos os seus processos? Esta ação não pode ser desfeita.`}
+              />
+            )}
             <Link
               href={`/dashboard/clientes/${client.id}/editar`}
               className="px-4 py-2 text-xs font-bold uppercase tracking-wider border"

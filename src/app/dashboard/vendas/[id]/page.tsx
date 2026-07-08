@@ -1,8 +1,9 @@
 import { auth } from "@/lib/auth";
-import { getProcessById } from "@/lib/actions/processes";
+import { getProcessById, deleteProcess } from "@/lib/actions/processes";
 import { notFound, redirect } from "next/navigation";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
+import { DeleteButton } from "@/components/ui/DeleteButton";
 import Link from "next/link";
 import { DOCUMENT_NAMES } from "@/lib/services-catalog";
 import { SalesStageActions } from "./SalesStageActions";
@@ -81,10 +82,21 @@ export default async function ProcessoDetalhePage({
         <span className="text-gray-700">{process.client.name}</span>
       </div>
 
-      <PageHeader
-        title={process.client.name}
-        subtitle={`Processo criado em ${formatDate(process.createdAt)}`}
-      />
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader
+          title={process.client.name}
+          subtitle={`Processo criado em ${formatDate(process.createdAt)}`}
+        />
+        {roles.includes("ADMIN") && (
+          <div className="flex-shrink-0 mt-1">
+            <DeleteButton
+              action={deleteProcess.bind(null, process.id)}
+              label="Apagar Processo"
+              confirmMessage={`Apagar este processo de "${process.client.name}"? Esta ação não pode ser desfeita.`}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Progresso de etapas */}
       <div className="bg-white rounded-lg border border-gray-200 p-5">

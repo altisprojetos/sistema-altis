@@ -10,6 +10,7 @@ function Field({
   placeholder,
   required,
   hint,
+  step,
 }: {
   label: string;
   name: string;
@@ -17,6 +18,7 @@ function Field({
   placeholder?: string;
   required?: boolean;
   hint?: string;
+  step?: string;
 }) {
   return (
     <div>
@@ -33,6 +35,7 @@ function Field({
         type={type}
         placeholder={placeholder}
         required={required}
+        step={step}
         className="w-full px-3 py-2.5 text-sm border outline-none"
         style={{
           borderColor: "var(--steel-200)",
@@ -72,6 +75,7 @@ function RuralPropertyBlock({ index }: { index: number }) {
           type="number"
           placeholder="0.00"
           hint="Total do imóvel"
+          step="any"
         />
         <Field
           label="Latitude"
@@ -79,6 +83,7 @@ function RuralPropertyBlock({ index }: { index: number }) {
           type="number"
           placeholder="-17.8400"
           hint="Coordenada GPS"
+          step="any"
         />
         <Field
           label="Longitude"
@@ -86,6 +91,7 @@ function RuralPropertyBlock({ index }: { index: number }) {
           type="number"
           placeholder="-40.3600"
           hint="Coordenada GPS"
+          step="any"
         />
       </div>
     </div>
