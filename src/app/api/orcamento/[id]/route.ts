@@ -129,6 +129,8 @@ body{background:#b8b8b8;font-family:Georgia,serif;}
   box-shadow:0 3px 14px rgba(0,0,0,.28);
   break-after:page;
   page-break-after:always;
+  print-color-adjust:exact;
+  -webkit-print-color-adjust:exact;
 }
 .page:last-child{break-after:auto;page-break-after:auto;}
 
