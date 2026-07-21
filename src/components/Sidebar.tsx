@@ -62,6 +62,13 @@ function NavIcon({ id }: { id: string }) {
           <path d="M10 2v4h4M6 9h4M6 12h3" />
         </svg>
       );
+    case "simulacao":
+      return (
+        <svg {...props}>
+          <rect x="2" y="2" width="12" height="12" rx="1.5" />
+          <path d="M5 5h2M9 5h2M5 8h2M9 8h2M5 11h2M9 11h2" />
+        </svg>
+      );
     case "usuarios":
       return (
         <svg {...props}>
@@ -91,6 +98,7 @@ const navItems: { label: string; href: string; icon: string; roles: Role[]; exac
   { label: "Operação",    href: "/dashboard/operacao",          icon: "operacao",   roles: ["ADMIN","OPERADOR"] },
   { label: "Financeiro",  href: "/dashboard/financeiro",        icon: "financeiro", roles: ["ADMIN","FINANCEIRO"] },
   { label: "Documentos",  href: "/dashboard/documentos",        icon: "documentos", roles: ["ADMIN","VENDEDOR","OPERADOR"] },
+  { label: "Simulação",   href: "/dashboard/simulacao",         icon: "simulacao",  roles: ["ADMIN","VENDEDOR"] },
 ];
 
 const adminItems: { label: string; href: string; icon: string; roles: Role[] }[] = [
