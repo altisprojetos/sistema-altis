@@ -53,28 +53,22 @@ function DocCard({ doc, processId }: { doc: Doc; processId: string }) {
 
   return (
     <div className="group relative flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all text-center">
-      {/* Overlay de ações ao hover */}
-      <div className="absolute inset-0 rounded-lg bg-white/90 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 z-10">
-        <a
-          href={doc.url}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs px-3 py-1 bg-[var(--ink-900)] text-white rounded hover:opacity-90"
-        >
-          Abrir
-        </a>
+      {/* Ações secundárias no hover (substituir / descrição) */}
+      <div className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
         <button
           onClick={() => fileRef.current?.click()}
           disabled={uploading || isPending}
-          className="text-xs px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+          title="Substituir arquivo"
+          className="text-[10px] px-2 py-0.5 border border-gray-300 rounded bg-white hover:bg-gray-50 disabled:opacity-50"
         >
-          {uploading ? "Enviando…" : "Substituir"}
+          {uploading ? "…" : "Substituir"}
         </button>
         <button
           onClick={() => setEditDesc(true)}
-          className="text-xs text-[var(--signal-500)] hover:underline"
+          title="Editar descrição"
+          className="text-[10px] px-2 py-0.5 border border-gray-300 rounded bg-white text-[var(--signal-500)] hover:bg-gray-50"
         >
-          {doc.description ? "Editar descrição" : "+ Descrição"}
+          {doc.description ? "Desc." : "+ Desc."}
         </button>
         <input
           ref={fileRef}
@@ -84,12 +78,15 @@ function DocCard({ doc, processId }: { doc: Doc; processId: string }) {
         />
       </div>
 
-      <FileIcon name={doc.fileName} />
-      <span className="text-xs text-gray-700 break-all line-clamp-2 w-full">{doc.docName || doc.fileName}</span>
-      {doc.description && (
-        <span className="text-[10px] text-gray-400 italic line-clamp-1 w-full">{doc.description}</span>
-      )}
-      <span className="text-[10px] text-gray-400">{fmtDate(doc.uploadedAt)}</span>
+      {/* Card inteiro clicável para abrir o documento */}
+      <a href={doc.url} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 w-full">
+        <FileIcon name={doc.fileName} />
+        <span className="text-xs text-gray-700 break-all line-clamp-2 w-full">{doc.docName || doc.fileName}</span>
+        {doc.description && (
+          <span className="text-[10px] text-gray-400 italic line-clamp-1 w-full">{doc.description}</span>
+        )}
+        <span className="text-[10px] text-gray-400">{fmtDate(doc.uploadedAt)}</span>
+      </a>
 
       {/* Modal de descrição */}
       {editDesc && (
