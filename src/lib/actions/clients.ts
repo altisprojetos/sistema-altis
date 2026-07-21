@@ -165,7 +165,7 @@ export async function addClientNote(clientId: string, content: string) {
 export async function deleteClient(clientId: string) {
   const session = await auth();
   if (!session) redirect("/login");
-  if (!session.user.roles.includes("ADMIN")) return { error: "Sem permissão" };
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))) return { error: "Sem permissão" };
 
   await prisma.$transaction(async (tx) => {
     // Process cascades its own children (ProcessService, Document, etc.)
@@ -182,7 +182,7 @@ export async function getClients(search?: string) {
   const session = await auth();
   if (!session) return [];
 
-  const isAdmin = session.user.roles.includes("ADMIN");
+  const isAdmin = session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r));
 
   return prisma.client.findMany({
     where: {

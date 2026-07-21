@@ -6,7 +6,7 @@ import NewProcessForm from "./NewProcessForm";
 export default async function NovoProcessoPage() {
   const session = await auth();
   if (!session) redirect("/login");
-  if (!session.user.roles.some(r => ["ADMIN", "VENDEDOR"].includes(r))) redirect("/dashboard");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "VENDEDOR"].includes(r))) redirect("/dashboard");
 
   const clients = await getClients();
 

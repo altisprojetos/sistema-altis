@@ -63,17 +63,18 @@ export default async function FinanceiroPage({
       </div>
 
       {/* Nav links */}
-      <div className="flex gap-2 text-sm">
+      <div className="flex gap-2 text-sm flex-wrap">
         {[
           { href: "/dashboard/financeiro", label: "Visão Geral" },
           { href: "/dashboard/financeiro/previsao", label: "Previsão" },
           { href: "/dashboard/financeiro/custos", label: "Custos" },
           { href: "/dashboard/financeiro/saldo", label: "Saldo em Conta" },
+          { href: "/dashboard/financeiro/desempenho", label: "Desempenho" },
         ].map((l) => (
           <Link
             key={l.href}
             href={l.href}
-            className="px-3 py-1.5 rounded border border-[var(--ink-900)] bg-[var(--ink-900)] text-white font-medium"
+            className="px-3 py-1.5 border border-[var(--ink-900)] bg-[var(--ink-900)] text-white font-medium"
           >
             {l.label}
           </Link>

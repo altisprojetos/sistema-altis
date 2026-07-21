@@ -66,7 +66,7 @@ export async function GET(
     include: {
       client: { include: { properties: { take: 1, orderBy: { index: "asc" } } } },
       seller: { select: { name: true } },
-      services: { select: { serviceName: true, serviceGroup: true, negotiatedValue: true }, orderBy: { id: "asc" } },
+      services: { select: { serviceName: true, serviceGroup: true, negotiatedValue: true, financedValue: true }, orderBy: { id: "asc" } },
     },
   });
 
@@ -84,7 +84,7 @@ export async function GET(
   const municipio = prop?.municipality || client.municipality || client.address || "";
   const totalValue = rec.services.reduce((s, sv) => s + (sv.negotiatedValue ?? 0), 0);
   const extenso = valorPorExtenso(totalValue);
-  const pagamento = paymentText(rec.paymentMethod, rec.installments);
+  const pagamento = rec.paymentLabel ?? paymentText(rec.paymentMethod, rec.installments);
 
   let lhSrc = "/papel-timbrado.png";
   try {
@@ -104,6 +104,11 @@ export async function GET(
   const clientDoc  = client.document ? `, ${isLegal ? "CNPJ" : "CPF"} n° ${client.document}` : "";
   const clientAddr = municipio ? `, residente e domiciliado(a) no Município de ${esc(municipio)}` : "";
   const clientFarm = farmName ? `, proprietário(a) do Imóvel Rural denominado "${esc(farmName)}"` : "";
+  const svcWithPct = rec.services.find(s => s.financedValue && s.negotiatedValue);
+  const feePercentage = svcWithPct
+    ? ((svcWithPct.negotiatedValue! / svcWithPct.financedValue!) * 100).toFixed(2).replace(".", ",")
+    : null;
+
   const prazoText  = rec.expectedCompletionDate
     ? `até <strong>${formatDateLong(rec.expectedCompletionDate)}</strong>`
     : "a ser definido conforme cronograma específico a ser acordado entre as partes";
@@ -235,7 +240,7 @@ body{background:#b8b8b8;font-family:"Times New Roman",Times,serif;}
   <div class="blk">
     <p class="ct">Cláusula Segunda – Do Prazo</p>
     <div class="cb">
-      <p>A CONTRATADA terá o prazo para execução dos serviços contratados ${prazoText}, contado a partir do recebimento de toda a documentação necessária devidamente completa e válida, bem como do pagamento da primeira parcela, quando houver.</p>
+      <p>A CONTRATADA terá o prazo para execução dos serviços contratados de até 20 (vinte) dias úteis para protocolar o projeto ou serviço contratado ao órgão competente, contado a partir do recebimento de toda a documentação necessária devidamente completa e válida, bem como do pagamento da primeira parcela, quando houver.</p>
       <p style="padding-top:5px">Parágrafo único. O prazo poderá ser prorrogado mediante acordo entre as partes, sem ônus para a CONTRATADA, nos casos de pendências de documentação, demora nos processos institucionais externos ou demais fatores alheios à vontade da CONTRATADA.</p>
     </div>
   </div>
@@ -259,16 +264,23 @@ body{background:#b8b8b8;font-family:"Times New Roman",Times,serif;}
   <div class="blk">
     <p class="ct">Cláusula Quarta – Do Valor e Forma de Pagamento</p>
     <div class="cb">
-      <p>O CONTRATANTE pagará à CONTRATADA o valor total de <strong>${formatCurrency(totalValue)}</strong> (${esc(extenso)}), a ser pago da seguinte forma: <strong>${esc(pagamento)}</strong>.</p>
+      <p>O CONTRATANTE pagará à CONTRATADA o valor total de <strong>${formatCurrency(totalValue)} (${esc(extenso)})</strong>, a ser pago da seguinte forma: <strong>${esc(pagamento)}</strong>.</p>
       <p style="padding-top:7px">Os pagamentos deverão ser realizados mediante depósito ou transferência bancária nos dados a seguir:</p>
       <div class="db">
         <p>Banco: Caixa Econômica Federal</p>
         <p>Agência: 0939</p>
         <p>Conta: 579148353-4</p>
-        <p>Titular: Alex Henrique Teixeira Dias</p>
-        <p>CPF: 122.969.096-47</p>
+        <p>Titular: ALTIS LTDA</p>
+        <p>CNPJ: 40.576.497/0001-05</p>
       </div>
-      <p style="padding-top:7px">Parágrafo único. O não pagamento nas datas acordadas implicará em mora automática, com incidência de multa de 2% (dois por cento) sobre o valor em atraso, acrescida de juros de mora de 1% (um por cento) ao mês e correção monetária pelo IPCA, sem prejuízo do direito de rescisão contratual.</p>
+      <p style="padding-top:7px">§ 1º. O não pagamento nas datas acordadas implicará em mora automática, com incidência de multa de 2% (dois por cento) sobre o valor em atraso, acrescida de juros de mora de 1% (um por cento) ao mês e correção monetária pelo IPCA, sem prejuízo do direito de rescisão contratual.</p>
+    </div>
+  </div>
+
+  <div class="blk">
+    <div class="cb">
+      <p>§ 2º. No caso de financiamento, se o projeto for inviabilizado em razão de pendências de responsabilidade do CONTRATANTE que impeçam a liberação dos recursos pela instituição financeira, e desde que o projeto já tenha sido protocolado junto à referida instituição, o CONTRATANTE pagará à CONTRATADA o equivalente a 50% (cinquenta por cento) do valor total deste contrato, a título de remuneração pelos serviços técnicos já prestados, independentemente da conclusão do financiamento.</p>
+      ${feePercentage ? `<p style="padding-top:5px">§ 3º. Nos contratos referentes à elaboração de projetos para financiamento rural, cuja remuneração da CONTRATADA seja estabelecida em percentual sobre o valor financiado, fica estabelecido o percentual de ${feePercentage}%, conforme acordado entre as partes. Caso o valor do financiamento aprovado pela instituição financeira seja superior ou inferior ao valor inicialmente previsto, a remuneração da CONTRATADA será recalculada com base no valor efetivamente financiado, mantendo-se o percentual pactuado.</p>` : ""}
     </div>
   </div>
 

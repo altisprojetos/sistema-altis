@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 export async function deleteProcess(processId: string) {
   const session = await auth();
   if (!session) redirect("/login");
-  if (!session.user.roles.includes("ADMIN")) return { error: "Sem permissão" };
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))) return { error: "Sem permissão" };
 
   // All children (ProcessService, Document, Devolution, TimelineEntry,
   // Reminder, BankPaymentReminder, Task, Commission, Prospection) cascade.
@@ -19,7 +19,7 @@ export async function deleteProcess(processId: string) {
   redirect("/dashboard/vendas");
 }
 
-export async function getOperacaoProcesses(filters?: { opsStage?: OpsStage; search?: string }) {
+export async function getOperacaoProcesses(filters?: { opsStage?: OpsStage; search?: string; analystId?: string }) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
 
@@ -30,8 +30,8 @@ export async function getOperacaoProcesses(filters?: { opsStage?: OpsStage; sear
     salesStage: { in: ["ENVIADO_OPERACAO", "DEVOLVIDO_PENDENCIAS"] },
   };
 
-  // Operador (sem ADMIN) vê: processos atribuídos a ele + processos A_INICIAR sem analista
-  if (roles.includes("OPERADOR") && !roles.includes("ADMIN")) {
+  // Operador (sem ADMIN/COORDENADOR) vê: processos atribuídos a ele + processos A_INICIAR sem analista
+  if (roles.includes("OPERADOR") && !roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))) {
     where.OR = [
       { analystId: userId },
       { opsStage: "A_INICIAR", analystId: null },
@@ -39,6 +39,7 @@ export async function getOperacaoProcesses(filters?: { opsStage?: OpsStage; sear
   }
 
   if (filters?.opsStage) where.opsStage = filters.opsStage;
+  if (filters?.analystId) where.analystId = filters.analystId;
   if (filters?.search) {
     where.client = { name: { contains: filters.search, mode: "insensitive" } };
   }
@@ -65,7 +66,7 @@ export async function addReminder(data: {
 }) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "OPERADOR", "VENDEDOR"].includes(r))) throw new Error("Sem permissão");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "OPERADOR", "VENDEDOR"].includes(r))) throw new Error("Sem permissão");
 
   const due = new Date(data.dueDate).toLocaleDateString("pt-BR");
   const desc = data.description ? ` — ${data.description}` : "";
@@ -137,7 +138,7 @@ export async function finalizeProcess(data: {
 }) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "OPERADOR"].includes(r))) throw new Error("Sem permissão");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "OPERADOR"].includes(r))) throw new Error("Sem permissão");
 
   const process = await prisma.process.findUnique({
     where: { id: data.processId },
@@ -225,6 +226,7 @@ export async function getProcesses(filters?: {
   salesStage?: SalesStage;
   clientId?: string;
   search?: string;
+  sellerId?: string;
 }) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
@@ -234,7 +236,7 @@ export async function getProcesses(filters?: {
 
   const where: Record<string, unknown> = {};
 
-  if (!roles.includes("ADMIN")) {
+  if (!roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))) {
     const orClauses: Record<string, unknown>[] = [];
     if (roles.includes("VENDEDOR")) orClauses.push({ sellerId: userId });
     if (roles.includes("OPERADOR")) orClauses.push({ analystId: userId });
@@ -244,6 +246,7 @@ export async function getProcesses(filters?: {
 
   if (filters?.salesStage) where.salesStage = filters.salesStage;
   if (filters?.clientId) where.clientId = filters.clientId;
+  if (filters?.sellerId) where.sellerId = filters.sellerId;
 
   if (filters?.search) {
     where.client = {
@@ -346,7 +349,7 @@ export async function createProcess(data: {
 }) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "VENDEDOR"].includes(r))) {
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "VENDEDOR"].includes(r))) {
     throw new Error("Sem permissão");
   }
 
@@ -398,7 +401,7 @@ export async function updateSalesStage(
 ) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "VENDEDOR"].includes(r))) {
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "VENDEDOR"].includes(r))) {
     throw new Error("Sem permissão");
   }
 
@@ -453,7 +456,7 @@ export async function addDevolution(
 ) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "OPERADOR"].includes(r))) {
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "OPERADOR"].includes(r))) {
     throw new Error("Sem permissão");
   }
 
@@ -488,7 +491,7 @@ export async function updateOpsStage(
 ) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "OPERADOR"].includes(r))) {
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "OPERADOR"].includes(r))) {
     throw new Error("Sem permissão");
   }
 
@@ -519,7 +522,7 @@ export async function updateOpsStage(
 export async function assignAnalyst(processId: string, analystId: string) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "OPERADOR"].includes(r))) {
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "OPERADOR"].includes(r))) {
     throw new Error("Sem permissão");
   }
 
@@ -551,7 +554,7 @@ export async function addProcessCost(data: {
 }) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "VENDEDOR", "OPERADOR"].includes(r))) throw new Error("Sem permissão");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "VENDEDOR", "OPERADOR"].includes(r))) throw new Error("Sem permissão");
 
   const d = new Date(data.date + "T12:00:00");
   await prisma.cost.create({
@@ -585,8 +588,9 @@ export async function deleteProcessCost(costId: string, processId: string) {
     select: { userId: true, approvalStatus: true },
   });
   if (!cost) throw new Error("Custo não encontrado");
-  if (!session.user.roles.includes("ADMIN") && cost.userId !== session.user.id) throw new Error("Sem permissão");
-  if (cost.approvalStatus === "APROVADO" && !session.user.roles.includes("ADMIN")) throw new Error("Custo já aprovado");
+  const isSuperAdmin = session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r));
+  if (!isSuperAdmin && cost.userId !== session.user.id) throw new Error("Sem permissão");
+  if (cost.approvalStatus === "APROVADO" && !isSuperAdmin) throw new Error("Custo já aprovado");
 
   await prisma.cost.delete({ where: { id: costId } });
 
@@ -600,7 +604,7 @@ export async function deleteProcessCost(costId: string, processId: string) {
 export async function approveProcessCost(costId: string) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.includes("ADMIN")) throw new Error("Sem permissão");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))) throw new Error("Sem permissão");
 
   const cost = await prisma.cost.findUnique({
     where: { id: costId },
@@ -628,7 +632,7 @@ export async function approveProcessCost(costId: string) {
 export async function rejectProcessCost(costId: string, reason: string) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.includes("ADMIN")) throw new Error("Sem permissão");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))) throw new Error("Sem permissão");
 
   const cost = await prisma.cost.findUnique({
     where: { id: costId },
@@ -650,7 +654,7 @@ export async function rejectProcessCost(costId: string, reason: string) {
 export async function getPendingProcessCosts() {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.includes("ADMIN")) throw new Error("Sem permissão");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))) throw new Error("Sem permissão");
 
   return prisma.cost.findMany({
     where: { processId: { not: null }, approvalStatus: "PENDENTE" },
@@ -680,7 +684,7 @@ export async function updateProcessServices(
 ) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "VENDEDOR"].includes(r))) throw new Error("Sem permissão");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "VENDEDOR"].includes(r))) throw new Error("Sem permissão");
 
   const proc = await prisma.process.findUnique({
     where: { id: processId },
@@ -688,7 +692,8 @@ export async function updateProcessServices(
   });
   if (!proc) throw new Error("Processo não encontrado");
   if (proc.salesStage !== "PROSPECCAO") throw new Error("Edição de serviços só é permitida na etapa Prospecção");
-  if (!session.user.roles.includes("ADMIN") && session.user.roles.includes("VENDEDOR") && proc.sellerId !== session.user.id) throw new Error("Sem permissão");
+  const isSuperAdmin2 = session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r));
+  if (!isSuperAdmin2 && session.user.roles.includes("VENDEDOR") && proc.sellerId !== session.user.id) throw new Error("Sem permissão");
 
   const totalValue = services.reduce((s, sv) => s + sv.negotiatedValue, 0);
 
@@ -726,7 +731,7 @@ export async function updateExpectedCompletionDate(
 ) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
-  if (!session.user.roles.some(r => ["ADMIN", "OPERADOR"].includes(r))) throw new Error("Sem permissão");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "OPERADOR"].includes(r))) throw new Error("Sem permissão");
 
   const prev = await prisma.process.findUnique({
     where: { id: processId },
@@ -758,4 +763,20 @@ export async function updateExpectedCompletionDate(
   ]);
 
   revalidatePath(`/dashboard/operacao/${processId}`);
+}
+
+export async function savePaymentLabel(processId: string, label: string) {
+  const session = await auth();
+  if (!session) redirect("/login");
+
+  const rec = await prisma.process.findUnique({ where: { id: processId }, select: { sellerId: true } });
+  if (!rec) return { error: "Processo não encontrado" };
+
+  const roles = session.user.roles;
+  const isAdmin = roles.some(r => ["ADMIN", "COORDENADOR"].includes(r));
+  if (!isAdmin && rec.sellerId !== session.user.id) return { error: "Sem permissão" };
+
+  await prisma.process.update({ where: { id: processId }, data: { paymentLabel: label } });
+  revalidatePath(`/dashboard/vendas/${processId}`);
+  return { ok: true };
 }

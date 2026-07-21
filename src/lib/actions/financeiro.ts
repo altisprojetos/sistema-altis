@@ -238,3 +238,145 @@ export async function getServiceBreakdown() {
     total: s._sum.negotiatedValue ?? 0,
   }));
 }
+
+// ─── Desempenho por Vendedor / Operador ─────────────────────────────────── v2
+
+export async function getDesempenhoVendedores(month?: number, year?: number) {
+  await requireFinanceiro();
+
+  const now = new Date();
+  const m = month ?? now.getMonth() + 1;
+  const y = year ?? now.getFullYear();
+  const startOfMonth = new Date(y, m - 1, 1);
+  const endOfMonth = new Date(y, m, 0, 23, 59, 59, 999);
+
+  const vendedores = await prisma.user.findMany({
+    where: { roles: { hasSome: ["VENDEDOR", "ADMIN"] } },
+    select: {
+      id: true,
+      name: true,
+      commissionRate: true,
+      processesSold: {
+        select: {
+          id: true,
+          salesStage: true,
+          opsStage: true,
+          negotiatedValue: true,
+          totalValue: true,
+          sentToOpsAt: true,
+          completedAt: true,
+          expectedCompletionDate: true,
+          commissions: {
+            select: { userId: true, amount: true, status: true },
+          },
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  return vendedores.map((v) => {
+    const processos = v.processesSold;
+    const ativos = processos.filter(p => p.salesStage !== "PROSPECCAO");
+    // Fechados no mês = enviados para operação no mês selecionado (data do fechamento pelo vendedor)
+    const finalizadosMes = processos.filter(
+      p => p.sentToOpsAt &&
+        p.sentToOpsAt >= startOfMonth && p.sentToOpsAt <= endOfMonth
+    );
+    const previsaoMes = processos.filter(
+      p => p.salesStage === "ENVIADO_OPERACAO" && p.opsStage !== "FINALIZADO" &&
+        p.expectedCompletionDate && p.expectedCompletionDate >= startOfMonth && p.expectedCompletionDate <= endOfMonth
+    );
+
+    const valorRealizado = finalizadosMes.reduce((s, p) => s + (p.negotiatedValue ?? p.totalValue ?? 0), 0);
+    const valorPrevisto = previsaoMes.reduce((s, p) => s + (p.negotiatedValue ?? p.totalValue ?? 0), 0);
+    const valorTotal = processos
+      .filter(p => p.opsStage === "FINALIZADO")
+      .reduce((s, p) => s + (p.negotiatedValue ?? p.totalValue ?? 0), 0);
+
+    // Filtrar apenas as comissões do próprio vendedor
+    const minhasComissoes = processos.flatMap(p => p.commissions).filter(c => c.userId === v.id);
+    const comissoesPendentes = minhasComissoes.filter(c => c.status === "PENDENTE").reduce((s, c) => s + c.amount, 0);
+    const comissoesPagas = minhasComissoes.filter(c => c.status === "PAGO").reduce((s, c) => s + c.amount, 0);
+
+    return {
+      id: v.id,
+      name: v.name,
+      commissionRate: v.commissionRate,
+      totalProcessos: ativos.length,
+      finalizadosMes: finalizadosMes.length,
+      previsaoMes: previsaoMes.length,
+      valorRealizado,
+      valorPrevisto,
+      valorTotal,
+      comissoesPendentes,
+      comissoesPagas,
+    };
+  });
+}
+
+export async function getDesempenhoOperadores(month?: number, year?: number) {
+  await requireFinanceiro();
+
+  const now = new Date();
+  const m = month ?? now.getMonth() + 1;
+  const y = year ?? now.getFullYear();
+  const startOfMonth = new Date(y, m - 1, 1);
+  const endOfMonth = new Date(y, m, 0, 23, 59, 59, 999);
+
+  const operadores = await prisma.user.findMany({
+    where: { roles: { hasSome: ["OPERADOR", "ADMIN"] } },
+    select: {
+      id: true,
+      name: true,
+      commissionRate: true,
+      processesAnalyzed: {
+        select: {
+          id: true,
+          opsStage: true,
+          negotiatedValue: true,
+          totalValue: true,
+          completedAt: true,
+          commissions: {
+            select: { userId: true, amount: true, status: true },
+          },
+        },
+      },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  return operadores.map((op) => {
+    const processos = op.processesAnalyzed;
+    const finalizadosMes = processos.filter(
+      p => p.opsStage === "FINALIZADO" &&
+        p.completedAt && p.completedAt >= startOfMonth && p.completedAt <= endOfMonth
+    );
+    const emAndamento = processos.filter(p =>
+      ["A_INICIAR", "ELABORAR", "ANALISE"].includes(p.opsStage ?? "")
+    );
+
+    const valorFinalizadoMes = finalizadosMes.reduce((s, p) => s + (p.negotiatedValue ?? p.totalValue ?? 0), 0);
+    const valorTotal = processos
+      .filter(p => p.opsStage === "FINALIZADO")
+      .reduce((s, p) => s + (p.negotiatedValue ?? p.totalValue ?? 0), 0);
+
+    // Filtrar apenas as comissões do próprio operador
+    const minhasComissoes = processos.flatMap(p => p.commissions).filter(c => c.userId === op.id);
+    const comissoesPendentes = minhasComissoes.filter(c => c.status === "PENDENTE").reduce((s, c) => s + c.amount, 0);
+    const comissoesPagas = minhasComissoes.filter(c => c.status === "PAGO").reduce((s, c) => s + c.amount, 0);
+
+    return {
+      id: op.id,
+      name: op.name,
+      commissionRate: op.commissionRate,
+      totalProcessos: processos.length,
+      emAndamento: emAndamento.length,
+      finalizadosMes: finalizadosMes.length,
+      valorFinalizadoMes,
+      valorTotal,
+      comissoesPendentes,
+      comissoesPagas,
+    };
+  });
+}

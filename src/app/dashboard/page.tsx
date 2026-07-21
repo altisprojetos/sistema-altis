@@ -255,7 +255,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Summary cards — role-specific */}
-      {roles.includes("VENDEDOR") && !roles.includes("ADMIN") && !roles.includes("FINANCEIRO") && !roles.includes("OPERADOR") && "emAndamento" in summary && (
+      {roles.includes("VENDEDOR") && !roles.some(r => ["ADMIN","COORDENADOR","FINANCEIRO","OPERADOR"].includes(r)) && "emAndamento" in summary && (
         <div className="grid grid-cols-3 gap-4 mb-8">
           <SummaryCard
             label="Processos ativos"
@@ -276,7 +276,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {roles.includes("OPERADOR") && !roles.includes("ADMIN") && !roles.includes("FINANCEIRO") && "aIniciar" in summary && (
+      {roles.includes("OPERADOR") && !roles.some(r => ["ADMIN","COORDENADOR","FINANCEIRO"].includes(r)) && "aIniciar" in summary && (
         <div className="grid grid-cols-3 gap-4 mb-8">
           <SummaryCard
             label="Aguardando início"
@@ -297,7 +297,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {(roles.includes("ADMIN") || roles.includes("FINANCEIRO")) && "totalActive" in summary && (
+      {roles.some(r => ["ADMIN","COORDENADOR","FINANCEIRO"].includes(r)) && "totalActive" in summary && (
         <div className="grid grid-cols-3 gap-4 mb-8">
           <SummaryCard
             label="Processos em operação"

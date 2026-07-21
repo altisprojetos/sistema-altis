@@ -92,13 +92,13 @@ function NavIcon({ id }: { id: string }) {
 }
 
 const navItems: { label: string; href: string; icon: string; roles: Role[]; exact?: boolean }[] = [
-  { label: "Início",      href: "/dashboard",                   icon: "inicio",     roles: ["ADMIN","VENDEDOR","OPERADOR","FINANCEIRO"], exact: true },
-  { label: "Clientes",    href: "/dashboard/clientes",          icon: "clientes",   roles: ["ADMIN","VENDEDOR","OPERADOR"] },
-  { label: "Vendas",      href: "/dashboard/vendas",            icon: "vendas",     roles: ["ADMIN","VENDEDOR"] },
-  { label: "Operação",    href: "/dashboard/operacao",          icon: "operacao",   roles: ["ADMIN","OPERADOR"] },
+  { label: "Início",      href: "/dashboard",                   icon: "inicio",     roles: ["ADMIN","COORDENADOR","VENDEDOR","OPERADOR","FINANCEIRO"], exact: true },
+  { label: "Clientes",    href: "/dashboard/clientes",          icon: "clientes",   roles: ["ADMIN","COORDENADOR","VENDEDOR","OPERADOR"] },
+  { label: "Vendas",      href: "/dashboard/vendas",            icon: "vendas",     roles: ["ADMIN","COORDENADOR","VENDEDOR"] },
+  { label: "Operação",    href: "/dashboard/operacao",          icon: "operacao",   roles: ["ADMIN","COORDENADOR","OPERADOR"] },
   { label: "Financeiro",  href: "/dashboard/financeiro",        icon: "financeiro", roles: ["ADMIN","FINANCEIRO"] },
-  { label: "Documentos",  href: "/dashboard/documentos",        icon: "documentos", roles: ["ADMIN","VENDEDOR","OPERADOR"] },
-  { label: "Simulação",   href: "/dashboard/simulacao",         icon: "simulacao",  roles: ["ADMIN","VENDEDOR"] },
+  { label: "Documentos",  href: "/dashboard/documentos",        icon: "documentos", roles: ["ADMIN","COORDENADOR","VENDEDOR","OPERADOR"] },
+  { label: "Simulação",   href: "/dashboard/simulacao",         icon: "simulacao",  roles: ["ADMIN","COORDENADOR","VENDEDOR"] },
 ];
 
 const adminItems: { label: string; href: string; icon: string; roles: Role[] }[] = [

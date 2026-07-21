@@ -67,6 +67,18 @@ export const SERVICES: Service[] = [
     docNumbers: [2,3,4,5,6,7,9,10,11,12,13,14,16,17,18,19,26],
   },
   {
+    key: "cr_investimento_maquinas",
+    group: "CreditoRural",
+    groupLabel: "Crédito Rural / Agronegócio",
+    name: "Projeto de Investimento Rural",
+    subtype: "Máquinas e Implementos",
+    priceType: "percent",
+    percentRate: 0.03,
+    minValue: 2500,
+    questions: [{ field: "financedValue", label: "Valor do financiamento (R$)", type: "number", unit: "R$" }],
+    docNumbers: [2,3,4,5,6,7,9,10,11,12,13,14,16,17,18,19,26],
+  },
+  {
     key: "cr_custeio_pecuaria",
     group: "CreditoRural",
     groupLabel: "Crédito Rural / Agronegócio",
@@ -143,7 +155,16 @@ export const SERVICES: Service[] = [
     name: "Inscrição de Produtor Rural",
     priceType: "fixed",
     baseValue: 1500,
-    docNumbers: [2,3,6,26],
+    docNumbers: [2,3,6,7,9,10,11,12],
+  },
+  {
+    key: "cr_caf",
+    group: "CreditoRural",
+    groupLabel: "Crédito Rural / Agronegócio",
+    name: "CAF – Cadastro de Agricultor Familiar",
+    priceType: "fixed",
+    baseValue: 200,
+    docNumbers: [2,3,6,7,9,10,11,12,27],
   },
   {
     key: "cr_ccir",
@@ -156,7 +177,7 @@ export const SERVICES: Service[] = [
     limit: 30,
     extraPerUnit: 12,
     questions: [{ field: "hectares", label: "Área (hectares)", type: "number", unit: "ha" }],
-    docNumbers: [6,10,12,26],
+    docNumbers: [2,3,6,7,12],
   },
   {
     key: "cr_itr_criacao",
@@ -166,7 +187,7 @@ export const SERVICES: Service[] = [
     subtype: "Criação",
     priceType: "fixed",
     baseValue: 1500,
-    docNumbers: [6,11,26],
+    docNumbers: [2,3,6,7,10,12],
   },
   {
     key: "cr_itr_regularizacao",
@@ -176,7 +197,7 @@ export const SERVICES: Service[] = [
     subtype: "Regularização",
     priceType: "fixed",
     baseValue: 1000,
-    docNumbers: [6,11,26],
+    docNumbers: [2,3,6,7,10,12],
   },
 
   // ─── AMBIENTAL ───────────────────────────────────────────────────
@@ -790,4 +811,5 @@ export const DOCUMENT_NAMES: Record<number, string> = {
   24: "Processo de Autuação Completo",
   25: "Imagens com Descrição do Local (mínimo 5 imagens)",
   26: "Contrato de Prestação de Serviço ALTIS",
+  27: "Notas Fiscais de Venda dos Produtos",
 };

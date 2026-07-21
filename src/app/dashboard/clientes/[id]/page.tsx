@@ -66,7 +66,7 @@ export default async function ClienteDetailPage({
   const client = await getClientById(id);
   if (!client) notFound();
 
-  const canSeeAllNotes = session.user.roles.includes("ADMIN");
+  const canSeeAllNotes = session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r));
 
   return (
     <div className="max-w-4xl">
@@ -87,7 +87,7 @@ export default async function ClienteDetailPage({
         />
         {!session.user.roles.includes("FINANCEIRO") && (
           <div className="flex gap-2 flex-shrink-0 mt-1">
-            {session.user.roles.includes("ADMIN") && (
+            {session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r)) && (
               <DeleteButton
                 action={deleteClient.bind(null, client.id)}
                 label="Apagar"

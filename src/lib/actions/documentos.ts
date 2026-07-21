@@ -11,7 +11,7 @@ export async function getDocumentTree() {
   const uid = session.user.id;
 
   let where: Record<string, unknown> | undefined = undefined;
-  if (!roles.includes("ADMIN")) {
+  if (!roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))) {
     const orClauses: Record<string, unknown>[] = [];
     if (roles.includes("VENDEDOR")) orClauses.push({ sellerId: uid });
     if (roles.includes("OPERADOR")) orClauses.push({ analystId: uid });

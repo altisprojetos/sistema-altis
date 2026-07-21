@@ -11,7 +11,7 @@ export async function getHomeReminders() {
   const userId = session.user.id;
 
   const processWhere: Record<string, unknown> = {};
-  if (!roles.includes("ADMIN")) {
+  if (!roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))) {
     if (roles.includes("OPERADOR")) {
       processWhere.OR = [{ analystId: userId }, { opsStage: "A_INICIAR", analystId: null }];
     } else if (roles.includes("VENDEDOR")) {
@@ -45,7 +45,7 @@ export async function getHomeSummary() {
   const userId = session.user.id;
   const now = new Date();
 
-  if (roles.includes("ADMIN") || roles.includes("FINANCEIRO")) {
+  if (roles.some(r => ["ADMIN", "COORDENADOR", "FINANCEIRO"].includes(r))) {
     const [totalActive, aIniciar, overdueReminders] = await Promise.all([
       prisma.process.count({ where: { opsStage: { not: "FINALIZADO" }, salesStage: "ENVIADO_OPERACAO" } }),
       prisma.process.count({ where: { opsStage: "A_INICIAR" } }),

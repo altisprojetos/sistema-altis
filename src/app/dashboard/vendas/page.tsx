@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { getProcesses } from "@/lib/actions/processes";
 import { getPendingProspectionsCount } from "@/lib/actions/prospeccoes";
+import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import Link from "next/link";
@@ -22,15 +23,24 @@ function formatCurrency(v: number | null) {
 export default async function VendasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string }>;
+  searchParams: Promise<{ search?: string; vendedor?: string }>;
 }) {
   const session = await auth();
   if (!session) return null;
-  const { search } = await searchParams;
+  const { search, vendedor } = await searchParams;
 
-  const [processes, prospectionsCount] = await Promise.all([
-    getProcesses({ search }),
+  const isAdmin = session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r));
+
+  const [processes, prospectionsCount, vendedores] = await Promise.all([
+    getProcesses({ search, sellerId: vendedor }),
     getPendingProspectionsCount(),
+    isAdmin
+      ? prisma.user.findMany({
+          where: { roles: { hasSome: ["VENDEDOR", "ADMIN"] } },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   const byStage = Object.fromEntries(
@@ -61,20 +71,37 @@ export default async function VendasPage({
         </Link>
       )}
 
-      {/* Busca */}
-      <form method="GET" className="flex gap-2 max-w-md">
+      {/* Busca + Filtro de vendedor */}
+      <form method="GET" className="flex gap-2 flex-wrap items-center">
         <input
           name="search"
           defaultValue={search}
           placeholder="Buscar cliente..."
-          className="flex-1 border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--signal-500)]"
+          className="border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--signal-500)] w-56"
         />
+        {isAdmin && vendedores.length > 0 && (
+          <select
+            name="vendedor"
+            defaultValue={vendedor ?? ""}
+            className="border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none"
+          >
+            <option value="">Todos os vendedores</option>
+            {vendedores.map((v) => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
+        )}
         <button
           type="submit"
           className="px-4 py-2 bg-[var(--ink-900)] text-white rounded text-sm hover:opacity-90"
         >
-          Buscar
+          Filtrar
         </button>
+        {(search || vendedor) && (
+          <a href="/dashboard/vendas" className="text-sm text-gray-500 hover:underline">
+            Limpar
+          </a>
+        )}
       </form>
 
       {/* Kanban */}

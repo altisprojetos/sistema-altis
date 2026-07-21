@@ -16,10 +16,11 @@ interface UserData {
 }
 
 const ROLES: { value: Role; label: string; desc: string }[] = [
-  { value: "VENDEDOR",   label: "Vendedor",   desc: "Acesso ao módulo de Vendas e Clientes" },
-  { value: "OPERADOR",   label: "Operador",   desc: "Acesso ao módulo de Operação" },
-  { value: "FINANCEIRO", label: "Financeiro", desc: "Acesso ao módulo Financeiro (somente leitura)" },
-  { value: "ADMIN",      label: "Admin",      desc: "Acesso total ao sistema" },
+  { value: "VENDEDOR",    label: "Vendedor",    desc: "Acesso ao módulo de Vendas e Clientes" },
+  { value: "OPERADOR",    label: "Operador",    desc: "Acesso ao módulo de Operação" },
+  { value: "FINANCEIRO",  label: "Financeiro",  desc: "Acesso ao módulo Financeiro (somente leitura)" },
+  { value: "COORDENADOR", label: "Coordenador",  desc: "Acesso completo a Clientes, Vendas e Operação (sem Admin)" },
+  { value: "ADMIN",       label: "Admin",       desc: "Acesso total ao sistema" },
 ];
 
 export function UserForm({ mode, user }: { mode: "create" | "edit"; user?: UserData }) {

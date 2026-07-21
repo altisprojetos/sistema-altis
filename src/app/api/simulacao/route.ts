@@ -3,31 +3,39 @@ import { auth } from "@/lib/auth";
 import fs from "fs";
 import path from "path";
 
-const BANCOS: Record<string, string> = {
-  BNB: "Banco do Nordeste (BNB)",
-  BB:  "Banco do Brasil (BB)",
-};
-
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function calcular(valor: number, taxaAnual: number, prazoTotal: number, carencia: number) {
-  const r = Math.pow(1 + taxaAnual / 100, 1 / 12) - 1;
-  const nAmort = prazoTotal - carencia;
-  const amortMensal = valor / nAmort;
-  const rows: { mes: number; tipo: string; saldoInicial: number; amort: number; juros: number; prestacao: number; saldoFinal: number }[] = [];
-  let saldo = valor;
+function calcular(valor: number, taxaAnual: number, prazoAnos: number, carenciaAnos: number) {
+  const nAmort = prazoAnos - carenciaAnos;
+  const amortAnual = nAmort > 0 ? valor / nAmort : 0;
+  const rate = taxaAnual / 100;
+  const rows: {
+    ano: number; tipo: string; saldoInicial: number;
+    amort: number; juros: number; prestacao: number; saldoFinal: number;
+  }[] = [];
 
-  for (let mes = 1; mes <= prazoTotal; mes++) {
-    const saldoInicial = saldo;
-    const juros = saldo * r;
-    if (mes <= carencia) {
-      rows.push({ mes, tipo: "Carência", saldoInicial, amort: 0, juros, prestacao: juros, saldoFinal: saldo });
+  let saldoTotal = valor;     // saldo com capitalização composta
+  let saldoPrincipal = valor; // redução de principal constante
+
+  for (let ano = 1; ano <= prazoAnos; ano++) {
+    const saldoInicial = saldoPrincipal;
+    const nRestantes = prazoAnos - ano + 1;
+
+    if (ano <= carenciaAnos) {
+      const juros = saldoTotal * rate;
+      rows.push({ ano, tipo: "Carência", saldoInicial, amort: 0, juros, prestacao: juros, saldoFinal: saldoPrincipal });
     } else {
-      const amort = Math.min(amortMensal, saldo);
-      saldo -= amort;
-      rows.push({ mes, tipo: "Amort.", saldoInicial, amort, juros, prestacao: amort + juros, saldoFinal: saldo });
+      const totalCapitalizado = saldoTotal * (1 + rate);
+      const prestacao = totalCapitalizado / nRestantes;
+      const amort = Math.min(amortAnual, saldoPrincipal);
+      const juros = prestacao - amort;
+
+      saldoTotal = Math.max(0, totalCapitalizado - prestacao);
+      saldoPrincipal = Math.max(0, saldoPrincipal - amort);
+
+      rows.push({ ano, tipo: "Amort.", saldoInicial, amort, juros, prestacao, saldoFinal: saldoPrincipal });
     }
   }
   return rows;
@@ -38,18 +46,20 @@ export async function GET(request: NextRequest) {
   if (!session) return new NextResponse("Não autorizado", { status: 401 });
 
   const sp = request.nextUrl.searchParams;
-  const banco   = sp.get("banco") ?? "BNB";
-  const valor   = parseFloat(sp.get("valor") ?? "0");
-  const taxa    = parseFloat(sp.get("taxa") ?? "0");
-  const prazo   = parseInt(sp.get("prazo") ?? "0");
-  const carencia = parseInt(sp.get("carencia") ?? "0");
+  const banco       = sp.get("banco") ?? "Não informado";
+  const valor       = parseFloat(sp.get("valor") ?? "0");
+  const taxa        = parseFloat(sp.get("taxa") ?? "0");
+  const prazo       = parseInt(sp.get("prazo") ?? "0");
+  const carencia    = parseInt(sp.get("carencia") ?? "0");
+  const clienteNome = sp.get("clienteNome") ?? "";
+  const clienteDoc  = sp.get("clienteDoc") ?? "";
 
   if (!valor || !taxa || !prazo) return new NextResponse("Parâmetros inválidos", { status: 400 });
 
   const rows = calcular(valor, taxa, prazo, carencia);
-  const totalJuros = rows.reduce((s, r) => s + r.juros, 0);
-  const totalPago  = rows.reduce((s, r) => s + r.prestacao, 0);
-  const totalAmort = rows.reduce((s, r) => s + r.amort, 0);
+  const totalJuros  = rows.reduce((s, r) => s + r.juros, 0);
+  const totalPago   = rows.reduce((s, r) => s + r.prestacao, 0);
+  const totalAmort  = rows.reduce((s, r) => s + r.amort, 0);
   const primeiraAmort = rows.find(r => r.tipo === "Amort.");
 
   let lhSrc = "/papel-timbrado.png";
@@ -61,7 +71,7 @@ export async function GET(request: NextRequest) {
 
   const tableRows = rows.map((r, i) => `
     <tr style="background:${r.tipo === "Carência" ? "#fffbeb" : i % 2 === 0 ? "white" : "#f9f9f9"}">
-      <td style="padding:4px 8px;font-size:11px;color:#888;font-family:monospace">${r.mes}</td>
+      <td style="padding:4px 8px;font-size:11px;color:#888;font-family:monospace">${r.ano}</td>
       <td style="padding:4px 8px;text-align:center">
         <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;background:${r.tipo === "Carência" ? "#fef3c7" : "#dbeafe"};color:${r.tipo === "Carência" ? "#92400e" : "#1e40af"}">${r.tipo}</span>
       </td>
@@ -72,11 +82,17 @@ export async function GET(request: NextRequest) {
       <td style="padding:4px 8px;text-align:right;font-size:11px">${fmt(r.saldoFinal)}</td>
     </tr>`).join("");
 
+  const clienteBlock = clienteNome ? `
+    <div style="border:1px solid #e5e5e5;padding:8px 12px;margin-bottom:14px">
+      <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Cliente</div>
+      <div style="font-size:12.5px;font-weight:600;color:#1a1a1a">${clienteNome}${clienteDoc ? ` — ${clienteDoc}` : ""}</div>
+    </div>` : "";
+
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Simulação de Financiamento — ${BANCOS[banco] ?? banco}</title>
+<title>Simulação de Financiamento — ${banco}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:#b8b8b8;font-family:Arial,sans-serif;}
@@ -95,7 +111,7 @@ body{background:#b8b8b8;font-family:Arial,sans-serif;}
 </head>
 <body>
 <div id="tb">
-  <span style="font-size:14px">Simulação — <strong>${BANCOS[banco] ?? banco}</strong></span>
+  <span style="font-size:14px">Simulação — <strong>${banco}</strong>${clienteNome ? ` — ${clienteNome}` : ""}</span>
   <button onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
 </div>
 
@@ -108,17 +124,18 @@ body{background:#b8b8b8;font-family:Arial,sans-serif;}
     <p style="font-size:16px;font-weight:bold;color:#0A2238;border-bottom:2px solid #0A2238;padding-bottom:6px;margin-bottom:14px;text-transform:uppercase;letter-spacing:.5px">
       Simulação de Financiamento
     </p>
+    ${clienteBlock}
   </div>
 
   <div class="blk">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
       ${[
-        ["Banco", BANCOS[banco] ?? banco],
+        ["Banco / Instituição", banco],
         ["Taxa de Juros", `${taxa}% ao ano`],
         ["Valor Financiado", fmt(valor)],
-        ["Prazo Total", `${prazo} meses`],
-        ["Carência", `${carencia} meses`],
-        ["Sistema", "SAC — Amortização Constante"],
+        ["Prazo Total", `${prazo} ${prazo === 1 ? "ano" : "anos"}`],
+        ["Carência", `${carencia} ${carencia === 1 ? "ano" : "anos"}`],
+        ["Sistema / Reembolso", "Amortização Constante Anual"],
       ].map(([k, v]) => `
         <div style="border:1px solid #e5e5e5;padding:8px 12px">
           <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${k}</div>
@@ -145,7 +162,7 @@ body{background:#b8b8b8;font-family:Arial,sans-serif;}
     <table style="width:100%;border-collapse:collapse;font-size:11px">
       <thead>
         <tr style="background:#0A2238;color:white">
-          <th style="padding:6px 8px;text-align:left">Mês</th>
+          <th style="padding:6px 8px;text-align:left">Ano</th>
           <th style="padding:6px 8px;text-align:center">Tipo</th>
           <th style="padding:6px 8px;text-align:right">Saldo Inicial</th>
           <th style="padding:6px 8px;text-align:right">Amortização</th>

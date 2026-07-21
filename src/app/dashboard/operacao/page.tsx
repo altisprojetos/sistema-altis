@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { getOperacaoProcesses } from "@/lib/actions/processes";
+import { prisma } from "@/lib/prisma";
 import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import Link from "next/link";
@@ -27,15 +28,26 @@ function fmtDate(d: Date | string | null) {
 export default async function OperacaoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ stage?: string; search?: string }>;
+  searchParams: Promise<{ stage?: string; search?: string; analista?: string }>;
 }) {
   const session = await auth();
   if (!session) return null;
 
-  const { stage, search } = await searchParams;
+  const { stage, search, analista } = await searchParams;
   const opsStage = (STAGES.find((s) => s.key === stage)?.key) as OpsStage | undefined;
 
-  const processes = await getOperacaoProcesses({ opsStage, search });
+  const isAdmin = session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r));
+
+  const [processes, operadores] = await Promise.all([
+    getOperacaoProcesses({ opsStage, search, analystId: analista }),
+    isAdmin
+      ? prisma.user.findMany({
+          where: { roles: { hasSome: ["OPERADOR", "ADMIN"] } },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
+  ]);
 
   const byStage = Object.fromEntries(
     STAGES.map((s) => [s.key, processes.filter((p) => p.opsStage === s.key)])
@@ -70,13 +82,25 @@ export default async function OperacaoPage({
             <option key={s.key} value={s.key}>{s.label}</option>
           ))}
         </select>
+        {isAdmin && operadores.length > 0 && (
+          <select
+            name="analista"
+            defaultValue={analista ?? ""}
+            className="border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none"
+          >
+            <option value="">Todos os analistas</option>
+            {operadores.map((op) => (
+              <option key={op.id} value={op.id}>{op.name}</option>
+            ))}
+          </select>
+        )}
         <button
           type="submit"
           className="px-4 py-2 bg-[var(--ink-900)] text-white rounded text-sm hover:opacity-90"
         >
           Filtrar
         </button>
-        {(stage || search) && (
+        {(stage || search || analista) && (
           <a href="/dashboard/operacao" className="text-sm text-gray-500 hover:underline">
             Limpar
           </a>

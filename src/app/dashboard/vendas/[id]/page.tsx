@@ -54,7 +54,7 @@ export default async function ProcessoDetalhePage({
   if (!process) notFound();
 
   const roles = session.user.roles;
-  const canEditSales = roles.some(r => ["ADMIN", "VENDEDOR"].includes(r));
+  const canEditSales = roles.some(r => ["ADMIN", "COORDENADOR", "VENDEDOR"].includes(r));
 
   // Documentos únicos de todos os serviços
   const { SERVICES } = await import("@/lib/services-catalog");
@@ -87,7 +87,7 @@ export default async function ProcessoDetalhePage({
           title={process.client.name}
           subtitle={`Processo criado em ${formatDate(process.createdAt)}`}
         />
-        {roles.includes("ADMIN") && (
+        {roles.some(r => ["ADMIN", "COORDENADOR"].includes(r)) && (
           <div className="flex-shrink-0 mt-1">
             <DeleteButton
               action={deleteProcess.bind(null, process.id)}
@@ -170,7 +170,7 @@ export default async function ProcessoDetalhePage({
           {/* Orçamento PDF + Contrato + Editar Serviços */}
           {(process.services.length > 0 || process.salesStage === "PROSPECCAO") && (
             <div className="flex justify-end gap-2">
-              {canEditSales && process.salesStage === "PROSPECCAO" && (
+              {canEditSales && (process.salesStage === "PROSPECCAO" || process.salesStage === "DEVOLVIDO_PENDENCIAS") && (
                 <EditServicesModal
                   processId={process.id}
                   existingServices={process.services}
@@ -423,7 +423,7 @@ export default async function ProcessoDetalhePage({
             processId={process.id}
             costs={process.costs ?? []}
             currentUserId={session.user.id}
-            isAdmin={roles.includes("ADMIN")}
+            isAdmin={roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))}
           />
         </div>
       </div>

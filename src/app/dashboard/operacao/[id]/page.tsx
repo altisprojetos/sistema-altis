@@ -38,7 +38,7 @@ export default async function OperacaoDetalhePage({
 }) {
   const session = await auth();
   if (!session) redirect("/login");
-  if (!session.user.roles.some(r => ["ADMIN", "OPERADOR"].includes(r))) redirect("/dashboard");
+  if (!session.user.roles.some(r => ["ADMIN", "COORDENADOR", "OPERADOR"].includes(r))) redirect("/dashboard");
 
   const { id } = await params;
   const process = await getProcessById(id).catch(() => null);
@@ -296,7 +296,7 @@ export default async function OperacaoDetalhePage({
             processId={process.id}
             costs={process.costs ?? []}
             currentUserId={session.user.id}
-            isAdmin={session.user.roles.includes("ADMIN")}
+            isAdmin={session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r))}
           />
 
           {/* Banco de pagamento */}
