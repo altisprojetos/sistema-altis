@@ -133,6 +133,7 @@ model ProcessService {
   negotiatedValue   Float?
   negotiationReason String?
   clientPropertyId  String?
+  propertyIds       String?
   clientProperty    ClientProperty? @relation(fields: [clientPropertyId], references: [id])
   process           Process         @relation(fields: [processId], references: [id], onDelete: Cascade)
 }
@@ -222,16 +223,18 @@ model TaskComment {
 }
 
 model Commission {
-  id        String           @id @default(cuid())
-  userId    String
-  processId String
-  amount    Float
-  status    CommissionStatus @default(PENDENTE)
-  paidAt    DateTime?
-  paidById  String?
-  createdAt DateTime         @default(now())
-  process   Process          @relation(fields: [processId], references: [id], onDelete: Cascade)
-  user      User             @relation(fields: [userId], references: [id])
+  id             String           @id @default(cuid())
+  userId         String
+  processId      String
+  amount         Float
+  originalAmount Float?
+  adjustmentNote String?
+  status         CommissionStatus @default(PENDENTE)
+  paidAt         DateTime?
+  paidById       String?
+  createdAt      DateTime         @default(now())
+  process        Process          @relation(fields: [processId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id])
 }
 
 model Cost {

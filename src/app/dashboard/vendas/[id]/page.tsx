@@ -67,6 +67,20 @@ export default async function ProcessoDetalhePage({
     )
   ).sort((a: number, b: number) => a - b) as number[];
 
+  // Propriedades envolvidas nos serviços (para organizar docs por imóvel)
+  const involvedPropertyIds = new Set<string>();
+  for (const s of process.services as Array<{ clientPropertyId: string | null; propertyIds: string | null }>) {
+    if (s.clientPropertyId) involvedPropertyIds.add(s.clientPropertyId);
+    if (s.propertyIds) {
+      try {
+        (JSON.parse(s.propertyIds) as string[]).forEach(id => involvedPropertyIds.add(id));
+      } catch { /* ignore malformed */ }
+    }
+  }
+  const involvedProperties = (process.client.properties ?? []).filter(
+    (p: { id: string }) => involvedPropertyIds.has(p.id)
+  );
+
   const totalValue = process.services.reduce(
     (s: number, sv: { negotiatedValue: number | null }) => s + (sv.negotiatedValue ?? 0),
     0
@@ -308,6 +322,7 @@ export default async function ProcessoDetalhePage({
                 docNames={DOCUMENT_NAMES}
                 uploadedDocs={process.documents ?? []}
                 editable={canEditSales && (process.salesStage === "DOCUMENTACAO_COLETADA" || process.salesStage === "DEVOLVIDO_PENDENCIAS")}
+                properties={involvedProperties}
               />
             </div>
           )}

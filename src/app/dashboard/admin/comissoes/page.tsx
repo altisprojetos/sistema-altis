@@ -5,6 +5,8 @@ import Badge from "@/components/ui/Badge";
 import Link from "next/link";
 import { PayButton, PayAllButton, PayAllGlobalButton } from "./PayActions";
 import { CostApproveButton, CostRejectButton } from "./CostApprovalActions";
+import { AdjustButton } from "./AdjustModal";
+import { ExtratoButton } from "./ExtratoButton";
 
 const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const DATE = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -204,7 +206,8 @@ export default async function ComissoesPage({
                       <Badge value={group.roles.join(" / ")} />
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 text-sm">
+                  <div className="flex items-center gap-4 text-sm">
+                    <ExtratoButton userId={group.userId} userName={group.userName} />
                     <div className="text-right">
                       <p className="text-gray-500 text-xs">Total</p>
                       <p className="font-semibold">{fmt(totalGrupo)}</p>
@@ -232,7 +235,7 @@ export default async function ComissoesPage({
                     <tr>
                       <th className="text-left px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Cliente</th>
                       <th className="text-left px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Serviço</th>
-                      <th className="text-right px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Valor</th>
+                      <th className="text-right px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Comissão</th>
                       <th className="text-center px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Status</th>
                       <th className="text-right px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Finalizado</th>
                       <th className="text-right px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Pago em</th>
@@ -252,7 +255,15 @@ export default async function ComissoesPage({
                             {c.process.services.map((s) => s.serviceName).join(", ") || "—"}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right font-semibold">{fmt(c.amount)}</td>
+                        <td className="px-5 py-3 text-right">
+                          <p className="font-semibold">{fmt(c.amount)}</p>
+                          {c.originalAmount && (
+                            <p className="text-xs text-gray-400 line-through">{fmt(c.originalAmount)}</p>
+                          )}
+                          {c.adjustmentNote && (
+                            <p className="text-xs text-amber-600 italic mt-0.5">{c.adjustmentNote}</p>
+                          )}
+                        </td>
                         <td className="px-5 py-3 text-center">
                           <Badge value={c.status} />
                         </td>
@@ -263,7 +274,16 @@ export default async function ComissoesPage({
                           {fmtDate(c.paidAt)}
                         </td>
                         <td className="px-5 py-3 text-right">
-                          {c.status === "PENDENTE" && <PayButton commissionId={c.id} />}
+                          <div className="flex gap-1 justify-end">
+                            {c.status === "PENDENTE" && (
+                              <AdjustButton
+                                commissionId={c.id}
+                                currentAmount={c.amount}
+                                clientName={c.process.client.name}
+                              />
+                            )}
+                            {c.status === "PENDENTE" && <PayButton commissionId={c.id} />}
+                          </div>
                         </td>
                       </tr>
                     ))}

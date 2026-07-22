@@ -784,6 +784,12 @@ export function getServicesByGroup(): Record<string, Service[]> {
   }, {});
 }
 
+// Documentos pessoais do proponente — exibidos uma única vez
+export const PERSONAL_DOC_NUMBERS = new Set([2, 3, 4, 5, 6, 7]);
+
+// Documentos por imóvel — exibidos uma vez para cada propriedade envolvida
+export const PROPERTY_DOC_NUMBERS = new Set([9, 10, 11, 12, 20, 25]);
+
 export const DOCUMENT_NAMES: Record<number, string> = {
   1:  "Itens de Cadastro / Documentos Pessoais",
   2:  "Certidão de Casamento (quando couber)",

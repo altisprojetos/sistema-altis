@@ -5,6 +5,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import Link from "next/link";
 import { OpsStage } from "@prisma/client";
+import { OpsFinalizadosSection } from "./FinalizadosSection";
 
 const STAGES: { key: OpsStage; label: string; color: string }[] = [
   { key: "A_INICIAR",  label: "A Iniciar",  color: "bg-gray-50  border-gray-300"  },
@@ -12,7 +13,6 @@ const STAGES: { key: OpsStage; label: string; color: string }[] = [
   { key: "ANALISE",    label: "Análise",    color: "bg-yellow-50 border-yellow-300" },
   { key: "DEVOLVIDO",  label: "Devolvido",  color: "bg-red-50   border-red-300"   },
   { key: "PARALISADO", label: "Paralisado", color: "bg-purple-50 border-purple-300"},
-  { key: "FINALIZADO", label: "Finalizado", color: "bg-green-50 border-green-300" },
 ];
 
 function fmt(v: number | null) {
@@ -49,13 +49,14 @@ export default async function OperacaoPage({
       : Promise.resolve([]),
   ]);
 
+  const finalizados = processes.filter((p) => p.opsStage === "FINALIZADO");
+  const ativos = processes.filter((p) => p.opsStage !== "FINALIZADO");
+
   const byStage = Object.fromEntries(
-    STAGES.map((s) => [s.key, processes.filter((p) => p.opsStage === s.key)])
+    STAGES.map((s) => [s.key, ativos.filter((p) => p.opsStage === s.key)])
   ) as Record<OpsStage, typeof processes>;
 
-  const totalPending = processes.filter(
-    (p) => p.opsStage !== "FINALIZADO"
-  ).length;
+  const totalPending = ativos.length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -191,6 +192,9 @@ export default async function OperacaoPage({
           );
         })}
       </div>
+
+      {/* Finalizados — colapsável */}
+      <OpsFinalizadosSection processes={finalizados} />
     </div>
   );
 }

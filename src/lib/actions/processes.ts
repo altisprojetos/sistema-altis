@@ -343,6 +343,7 @@ export async function createProcess(data: {
     confrontantes?: number;
     financedValue?: number;
     clientPropertyId?: string | null;
+    propertyIds?: string[];
   }>;
   expectedCompletionDate?: string;
   notes?: string;
@@ -378,6 +379,7 @@ export async function createProcess(data: {
           confrontantes: sv.confrontantes,
           financedValue: sv.financedValue,
           clientPropertyId: sv.clientPropertyId ?? null,
+          propertyIds: sv.propertyIds ? JSON.stringify(sv.propertyIds) : null,
         })),
       },
       timeline: {
@@ -680,6 +682,7 @@ export async function updateProcessServices(
     confrontantes?: number;
     financedValue?: number;
     clientPropertyId?: string | null;
+    propertyIds?: string[];
   }>
 ) {
   const session = await auth();
@@ -691,7 +694,7 @@ export async function updateProcessServices(
     select: { salesStage: true, sellerId: true },
   });
   if (!proc) throw new Error("Processo não encontrado");
-  if (proc.salesStage !== "PROSPECCAO") throw new Error("Edição de serviços só é permitida na etapa Prospecção");
+  if (!["PROSPECCAO", "DEVOLVIDO_PENDENCIAS"].includes(proc.salesStage)) throw new Error("Edição de serviços só é permitida nas etapas Prospecção ou Devolvido");
   const isSuperAdmin2 = session.user.roles.some(r => ["ADMIN", "COORDENADOR"].includes(r));
   if (!isSuperAdmin2 && session.user.roles.includes("VENDEDOR") && proc.sellerId !== session.user.id) throw new Error("Sem permissão");
 
@@ -713,6 +716,7 @@ export async function updateProcessServices(
         confrontantes: sv.confrontantes ?? null,
         financedValue: sv.financedValue ?? null,
         clientPropertyId: sv.clientPropertyId ?? null,
+        propertyIds: sv.propertyIds ? JSON.stringify(sv.propertyIds) : null,
       })),
     }),
     prisma.process.update({

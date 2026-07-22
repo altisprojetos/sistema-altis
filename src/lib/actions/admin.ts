@@ -112,7 +112,7 @@ export async function getCommissions(filters?: { status?: "PENDENTE" | "PAGA" })
         select: {
           id: true,
           client: { select: { name: true } },
-          services: { select: { serviceName: true } },
+          services: { select: { serviceName: true, subtype: true, negotiatedValue: true } },
           completedAt: true,
         },
       },
@@ -154,6 +154,26 @@ export async function payCommission(commissionId: string) {
   }
 
   revalidatePath("/dashboard/admin/comissoes");
+}
+
+export async function adjustCommission(commissionId: string, newAmount: number, note: string) {
+  await requireAdmin();
+
+  const current = await prisma.commission.findUnique({ where: { id: commissionId } });
+  if (!current) return { error: "Comissão não encontrada" };
+  if (current.status === "PAGA") return { error: "Comissão já paga não pode ser ajustada" };
+
+  await prisma.commission.update({
+    where: { id: commissionId },
+    data: {
+      amount: newAmount,
+      originalAmount: current.originalAmount ?? current.amount,
+      adjustmentNote: note,
+    },
+  });
+
+  revalidatePath("/dashboard/admin/comissoes");
+  return { ok: true };
 }
 
 export async function payAllPendingCommissions(userId?: string) {

@@ -297,7 +297,7 @@ export async function getDesempenhoVendedores(month?: number, year?: number) {
     // Filtrar apenas as comissões do próprio vendedor
     const minhasComissoes = processos.flatMap(p => p.commissions).filter(c => c.userId === v.id);
     const comissoesPendentes = minhasComissoes.filter(c => c.status === "PENDENTE").reduce((s, c) => s + c.amount, 0);
-    const comissoesPagas = minhasComissoes.filter(c => c.status === "PAGO").reduce((s, c) => s + c.amount, 0);
+    const comissoesPagas = minhasComissoes.filter(c => c.status === "PAGA").reduce((s, c) => s + c.amount, 0);
 
     return {
       id: v.id,
@@ -364,7 +364,7 @@ export async function getDesempenhoOperadores(month?: number, year?: number) {
     // Filtrar apenas as comissões do próprio operador
     const minhasComissoes = processos.flatMap(p => p.commissions).filter(c => c.userId === op.id);
     const comissoesPendentes = minhasComissoes.filter(c => c.status === "PENDENTE").reduce((s, c) => s + c.amount, 0);
-    const comissoesPagas = minhasComissoes.filter(c => c.status === "PAGO").reduce((s, c) => s + c.amount, 0);
+    const comissoesPagas = minhasComissoes.filter(c => c.status === "PAGA").reduce((s, c) => s + c.amount, 0);
 
     return {
       id: op.id,

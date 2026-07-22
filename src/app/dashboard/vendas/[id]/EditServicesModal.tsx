@@ -30,12 +30,14 @@ interface ExistingService {
   confrontantes: number | null;
   financedValue: number | null;
   clientPropertyId: string | null;
+  propertyIds: string | null;
 }
 
 interface SelectedService {
   instanceId: string;
   service: Service;
   clientPropertyId: string | null;
+  propertyIds: string[];
   params: {
     hectares?: number;
     squareMeters?: number;
@@ -77,13 +79,22 @@ function propertyLabel(prop: ClientProperty): string {
   return `Imóvel ${prop.index + 1}`;
 }
 
-function makeInstanceId(serviceKey: string, propertyId: string | null) {
-  return propertyId ? `${serviceKey}__${propertyId}` : serviceKey;
+function makeInstanceId(serviceKey: string, propIds: string[]) {
+  if (propIds.length === 0) return serviceKey;
+  return `${serviceKey}__${[...propIds].sort().join("__")}`;
 }
 
 function existingToSelected(sv: ExistingService): SelectedService | null {
   const service = SERVICES.find((s) => s.key === sv.serviceKey);
   if (!service) return null;
+
+  // Reconstruct propertyIds: prefer JSON field, fall back to single clientPropertyId
+  let propIds: string[] = [];
+  if (sv.propertyIds) {
+    try { propIds = JSON.parse(sv.propertyIds) as string[]; } catch { /* ignore */ }
+  } else if (sv.clientPropertyId) {
+    propIds = [sv.clientPropertyId];
+  }
 
   const params: SelectedService["params"] = {};
   if (sv.hectares) params.hectares = sv.hectares;
@@ -92,9 +103,10 @@ function existingToSelected(sv: ExistingService): SelectedService | null {
   if (sv.financedValue) params.financedValue = sv.financedValue;
 
   return {
-    instanceId: makeInstanceId(sv.serviceKey, sv.clientPropertyId),
+    instanceId: makeInstanceId(sv.serviceKey, propIds),
     service,
-    clientPropertyId: sv.clientPropertyId,
+    clientPropertyId: propIds.length === 1 ? propIds[0] : null,
+    propertyIds: propIds,
     params,
     calculatedValue: sv.calculatedValue,
     negotiatedValue: sv.negotiatedValue ?? 0,
@@ -127,12 +139,12 @@ export function EditServicesModal({
 
   const [selectedServices, setSelectedServices] = useState<SelectedService[]>(initialServices);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
-  const [activePropertyId, setActivePropertyId] = useState<string | null>(
-    clientProperties[0]?.id ?? null
-  );
+  const [pendingService, setPendingService] = useState<Service | null>(null);
+  const [checkedProps, setCheckedProps] = useState<Set<string>>(new Set());
 
   const byGroup = getServicesByGroup();
   const groupLabels = Object.fromEntries(SERVICES.map((s) => [s.group, s.groupLabel]));
+  const addedServiceKeys = new Set(selectedServices.map((s) => s.service.key));
 
   function openModal() {
     setSelectedServices(initialServices());
@@ -141,10 +153,10 @@ export function EditServicesModal({
     setOpen(true);
   }
 
-  function addService(service: Service) {
+  function addService(service: Service, propIds: string[] = []) {
     if (service.priceType === "suspenso") return;
-    const propId = isMultiProperty ? activePropertyId : null;
-    const instanceId = makeInstanceId(service.key, propId);
+    const effectivePropIds = isMultiProperty ? propIds : [];
+    const instanceId = makeInstanceId(service.key, effectivePropIds);
     if (selectedServices.find((s) => s.instanceId === instanceId)) return;
 
     setSelectedServices((prev) => [
@@ -152,7 +164,8 @@ export function EditServicesModal({
       {
         instanceId,
         service,
-        clientPropertyId: propId,
+        clientPropertyId: effectivePropIds.length === 1 ? effectivePropIds[0] : null,
+        propertyIds: effectivePropIds,
         params: {},
         calculatedValue: service.priceType === "fixed" ? (service.baseValue ?? null) : null,
         negotiatedValue: service.priceType === "fixed" ? (service.baseValue ?? 0) : 0,
@@ -160,6 +173,46 @@ export function EditServicesModal({
         manualValue: ["enquadramento", "consultar"].includes(service.priceType),
       },
     ]);
+  }
+
+  function openPropertyModal(service: Service) {
+    const existing = selectedServices.find((s) => s.service.key === service.key);
+    setCheckedProps(new Set(existing ? existing.propertyIds : []));
+    setPendingService(service);
+  }
+
+  function confirmAddService() {
+    if (!pendingService) return;
+    const propIds = Array.from(checkedProps);
+    setSelectedServices((prev) => {
+      const without = prev.filter((s) => s.service.key !== pendingService.key);
+      if (propIds.length === 0) return without;
+      const instanceId = makeInstanceId(pendingService.key, propIds);
+      const existing = prev.find((s) => s.service.key === pendingService.key);
+      return [
+        ...without,
+        {
+          instanceId,
+          service: pendingService,
+          clientPropertyId: propIds.length === 1 ? propIds[0] : null,
+          propertyIds: propIds,
+          params: existing?.params ?? {},
+          calculatedValue: existing?.calculatedValue ?? (pendingService.priceType === "fixed" ? (pendingService.baseValue ?? null) : null),
+          negotiatedValue: existing?.negotiatedValue ?? (pendingService.priceType === "fixed" ? (pendingService.baseValue ?? 0) : 0),
+          negotiationReason: existing?.negotiationReason ?? "",
+          manualValue: existing?.manualValue ?? ["enquadramento", "consultar"].includes(pendingService.priceType),
+        },
+      ];
+    });
+    setPendingService(null);
+  }
+
+  function toggleProp(propId: string) {
+    setCheckedProps((prev) => {
+      const next = new Set(prev);
+      if (next.has(propId)) next.delete(propId); else next.add(propId);
+      return next;
+    });
   }
 
   function removeService(instanceId: string) {
@@ -225,6 +278,7 @@ export function EditServicesModal({
           confrontantes: sv.params.confrontantes,
           financedValue: sv.params.financedValue,
           clientPropertyId: sv.clientPropertyId,
+          propertyIds: sv.propertyIds.length > 0 ? sv.propertyIds : undefined,
         }))
       );
       setOpen(false);
@@ -259,41 +313,7 @@ export function EditServicesModal({
                 <div className="bg-red-50 border border-red-200 text-red-700 rounded px-4 py-2 text-sm">{error}</div>
               )}
 
-              {/* Tabs de imóvel (multi-propriedade) */}
-              {isMultiProperty && (
-                <div>
-                  <p className="text-xs text-gray-500 mb-2">Adicionar para o imóvel:</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {clientProperties.map((prop) => {
-                      const count = selectedServices.filter((s) => s.clientPropertyId === prop.id).length;
-                      const isActive = activePropertyId === prop.id;
-                      return (
-                        <button
-                          key={prop.id}
-                          type="button"
-                          onClick={() => setActivePropertyId(prop.id)}
-                          className="text-xs px-3 py-1.5 rounded-full border font-medium transition-all flex items-center gap-1.5"
-                          style={{
-                            background: isActive ? "var(--ink-900)" : "white",
-                            color: isActive ? "white" : "var(--ink-900)",
-                            borderColor: isActive ? "var(--ink-900)" : "var(--steel-200)",
-                          }}
-                        >
-                          {propertyLabel(prop)}
-                          {count > 0 && (
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold"
-                              style={{ background: isActive ? "white" : "var(--signal-500)", color: isActive ? "var(--ink-900)" : "white" }}>
-                              {count}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Grupos do catálogo */}
+              {/* Catálogo de serviços */}
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Catálogo de Serviços</p>
                 <div className="flex gap-2 flex-wrap mb-3">
@@ -320,36 +340,59 @@ export function EditServicesModal({
                         <tr>
                           <th className="text-left px-3 py-2 font-medium text-gray-600">Serviço</th>
                           <th className="text-left px-3 py-2 font-medium text-gray-600">Preço</th>
-                          <th className="w-20 px-3 py-2"></th>
+                          <th className="w-32 px-3 py-2"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {byGroup[activeGroup].map((s) => {
                           const suspended = s.priceType === "suspenso";
-                          const propId = isMultiProperty ? activePropertyId : null;
-                          const instanceId = makeInstanceId(s.key, propId);
-                          const added = !!selectedServices.find((ss) => ss.instanceId === instanceId);
+                          const added = addedServiceKeys.has(s.key);
+                          const existingInstance = selectedServices.find((ss) => ss.service.key === s.key);
                           return (
                             <tr key={s.key} className={suspended ? "opacity-40" : "hover:bg-gray-50"}>
                               <td className="px-3 py-2">
                                 <span className="font-medium">{s.name}</span>
                                 {s.subtype && <span className="text-gray-500"> — {s.subtype}</span>}
                                 {suspended && <span className="ml-2 text-xs bg-gray-200 text-gray-500 rounded px-1">Suspenso</span>}
+                                {added && existingInstance && existingInstance.propertyIds.length > 1 && (
+                                  <span className="ml-2 text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">
+                                    {existingInstance.propertyIds.length} imóveis
+                                  </span>
+                                )}
                               </td>
                               <td className="px-3 py-2 text-gray-500">{getPriceLabel(s)}</td>
                               <td className="px-3 py-2 text-right">
                                 {!suspended && (
-                                  <button
-                                    type="button"
-                                    onClick={() => added ? removeService(instanceId) : addService(s)}
-                                    className={`text-xs px-3 py-1 rounded border transition-all ${
-                                      added
-                                        ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
-                                        : "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"
-                                    }`}
-                                  >
-                                    {added ? "Remover" : "Adicionar"}
-                                  </button>
+                                  <div className="flex items-center gap-1 justify-end">
+                                    {added && isMultiProperty && (
+                                      <button
+                                        type="button"
+                                        onClick={() => openPropertyModal(s)}
+                                        className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-500 hover:bg-gray-100"
+                                      >
+                                        Editar imóveis
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (added) {
+                                          removeService(existingInstance!.instanceId);
+                                        } else if (isMultiProperty) {
+                                          openPropertyModal(s);
+                                        } else {
+                                          addService(s);
+                                        }
+                                      }}
+                                      className={`text-xs px-3 py-1 rounded border transition-all ${
+                                        added
+                                          ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+                                          : "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"
+                                      }`}
+                                    >
+                                      {added ? "Remover" : "Adicionar"}
+                                    </button>
+                                  </div>
                                 )}
                               </td>
                             </tr>
@@ -371,11 +414,9 @@ export function EditServicesModal({
                     <ServiceCard
                       key={sv.instanceId}
                       sv={sv}
-                      propertyLabel={
-                        isMultiProperty && sv.clientPropertyId
-                          ? propertyLabel(clientProperties.find((p) => p.id === sv.clientPropertyId)!)
-                          : null
-                      }
+                      propertyLabels={sv.propertyIds.map(
+                        id => propertyLabel(clientProperties.find(p => p.id === id) ?? { id, index: 0, farmName: null, municipality: null, areaHa: null })
+                      )}
                       onRemove={() => removeService(sv.instanceId)}
                       onUpdateParam={(f, v) => updateParam(sv.instanceId, f, v)}
                       onUpdateNegotiated={(v) => updateNegotiatedValue(sv.instanceId, v)}
@@ -411,6 +452,74 @@ export function EditServicesModal({
               </button>
             </div>
           </div>
+
+          {/* Modal de seleção de imóveis */}
+          {pendingService && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+                <h3 className="font-bold text-[var(--ink-900)] text-base mb-1">
+                  {pendingService.name}{pendingService.subtype ? ` — ${pendingService.subtype}` : ""}
+                </h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Selecione o(s) imóvel(is) contemplados por este serviço:
+                </p>
+
+                <div className="flex flex-col gap-2 mb-4">
+                  {clientProperties.map((prop) => {
+                    const label = propertyLabel(prop);
+                    const checked = checkedProps.has(prop.id);
+                    return (
+                      <label
+                        key={prop.id}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                          checked
+                            ? "border-[var(--signal-500)] bg-[var(--signal-500)] text-white"
+                            : "border-gray-200 hover:border-gray-400 text-gray-700"
+                        }`}
+                        onClick={() => toggleProp(prop.id)}
+                      >
+                        <span className={`w-4 h-4 rounded border flex items-center justify-center flex-none ${
+                          checked ? "bg-white border-white" : "border-current"
+                        }`}>
+                          {checked && <span className="text-[var(--signal-500)] text-xs font-bold">✓</span>}
+                        </span>
+                        <div className="text-sm">
+                          <p className="font-medium">{label}</p>
+                          {prop.areaHa && <p className={`text-xs ${checked ? "opacity-80" : "opacity-60"}`}>{prop.areaHa} ha</p>}
+                        </div>
+                      </label>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    className="text-left px-3 py-2 text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                    onClick={() => setCheckedProps(new Set(clientProperties.map(p => p.id)))}
+                  >
+                    Selecionar todos
+                  </button>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPendingService(null)}
+                    className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmAddService}
+                    disabled={checkedProps.size === 0}
+                    className="flex-1 py-2 rounded-lg bg-[var(--signal-500)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40"
+                  >
+                    {checkedProps.size > 0 ? `Confirmar (${checkedProps.size} imóvel${checkedProps.size > 1 ? "is" : ""})` : "Selecione ao menos 1"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </>
@@ -419,7 +528,7 @@ export function EditServicesModal({
 
 function ServiceCard({
   sv,
-  propertyLabel: propLabel,
+  propertyLabels = [],
   onRemove,
   onUpdateParam,
   onUpdateNegotiated,
@@ -427,7 +536,7 @@ function ServiceCard({
   onUpdateManual,
 }: {
   sv: SelectedService;
-  propertyLabel: string | null;
+  propertyLabels?: string[];
   onRemove: () => void;
   onUpdateParam: (field: string, value: number | undefined) => void;
   onUpdateNegotiated: (value: number) => void;
@@ -446,8 +555,14 @@ function ServiceCard({
             {sv.service.subtype && <span className="text-gray-500"> — {sv.service.subtype}</span>}
           </p>
           <p className="text-xs text-gray-500">{sv.service.groupLabel}</p>
-          {propLabel && (
-            <p className="text-xs text-[var(--signal-500)] mt-0.5">{propLabel}</p>
+          {propertyLabels.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {propertyLabels.map((label) => (
+                <span key={label} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                  🏡 {label}
+                </span>
+              ))}
+            </div>
           )}
         </div>
         <button type="button" onClick={onRemove} className="text-xs text-red-500 hover:text-red-700 whitespace-nowrap">

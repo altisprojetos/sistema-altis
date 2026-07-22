@@ -6,6 +6,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Badge from "@/components/ui/Badge";
 import Link from "next/link";
 import { SalesStage } from "@prisma/client";
+import { FinalizadosSection } from "./FinalizadosSection";
 
 const STAGES: { key: SalesStage; label: string; color: string }[] = [
   { key: "PROSPECCAO", label: "Prospecção", color: "bg-gray-100 border-gray-300" },
@@ -43,8 +44,12 @@ export default async function VendasPage({
       : Promise.resolve([]),
   ]);
 
+  // Separa finalizados (opsStage FINALIZADO) do pipeline ativo
+  const finalizados = processes.filter((p) => p.opsStage === "FINALIZADO");
+  const ativos = processes.filter((p) => p.opsStage !== "FINALIZADO");
+
   const byStage = Object.fromEntries(
-    STAGES.map((s) => [s.key, processes.filter((p) => p.salesStage === s.key)])
+    STAGES.map((s) => [s.key, ativos.filter((p) => p.salesStage === s.key)])
   ) as Record<SalesStage, typeof processes>;
 
   const canCreate = session.user.roles.some(r => ["ADMIN", "VENDEDOR"].includes(r));
@@ -164,12 +169,12 @@ export default async function VendasPage({
 
       {/* Totais */}
       <div className="flex gap-4 flex-wrap text-sm text-gray-600">
-        <span>Total de processos: <strong>{processes.length}</strong></span>
+        <span>Processos ativos: <strong>{ativos.length}</strong></span>
         <span>
           Valor total:{" "}
           <strong>
             {formatCurrency(
-              processes.reduce(
+              ativos.reduce(
                 (s, p) =>
                   s + p.services.reduce(
                     (ss: number, sv: { negotiatedValue: number | null }) => ss + (sv.negotiatedValue ?? 0),
@@ -181,6 +186,9 @@ export default async function VendasPage({
           </strong>
         </span>
       </div>
+
+      {/* Finalizados — colapsável */}
+      <FinalizadosSection processes={finalizados} />
     </div>
   );
 }
