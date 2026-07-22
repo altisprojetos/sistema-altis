@@ -29,6 +29,7 @@ interface ExistingService {
   squareMeters: number | null;
   confrontantes: number | null;
   financedValue: number | null;
+  collateral: string | null;
   clientPropertyId: string | null;
   propertyIds: string | null;
 }
@@ -48,6 +49,7 @@ interface SelectedService {
   negotiatedValue: number;
   negotiationReason: string;
   manualValue: boolean;
+  collateral: string;
 }
 
 function formatCurrency(v: number | null) {
@@ -112,6 +114,7 @@ function existingToSelected(sv: ExistingService): SelectedService | null {
     negotiatedValue: sv.negotiatedValue ?? 0,
     negotiationReason: sv.negotiationReason ?? "",
     manualValue: ["enquadramento", "consultar"].includes(service.priceType),
+    collateral: sv.collateral ?? "",
   };
 }
 
@@ -171,6 +174,7 @@ export function EditServicesModal({
         negotiatedValue: service.priceType === "fixed" ? (service.baseValue ?? 0) : 0,
         negotiationReason: "",
         manualValue: ["enquadramento", "consultar"].includes(service.priceType),
+        collateral: "",
       },
     ]);
   }
@@ -201,6 +205,7 @@ export function EditServicesModal({
           negotiatedValue: existing?.negotiatedValue ?? (pendingService.priceType === "fixed" ? (pendingService.baseValue ?? 0) : 0),
           negotiationReason: existing?.negotiationReason ?? "",
           manualValue: existing?.manualValue ?? ["enquadramento", "consultar"].includes(pendingService.priceType),
+          collateral: existing?.collateral ?? "",
         },
       ];
     });
@@ -253,6 +258,12 @@ export function EditServicesModal({
     );
   }
 
+  function updateCollateral(instanceId: string, value: string) {
+    setSelectedServices((prev) =>
+      prev.map((s) => s.instanceId !== instanceId ? s : { ...s, collateral: value })
+    );
+  }
+
   function handleSave() {
     if (selectedServices.length === 0) { setError("Adicione ao menos um serviço"); return; }
     for (const s of selectedServices) {
@@ -277,6 +288,7 @@ export function EditServicesModal({
           squareMeters: sv.params.squareMeters,
           confrontantes: sv.params.confrontantes,
           financedValue: sv.params.financedValue,
+          collateral: sv.collateral || undefined,
           clientPropertyId: sv.clientPropertyId,
           propertyIds: sv.propertyIds.length > 0 ? sv.propertyIds : undefined,
         }))
@@ -422,6 +434,7 @@ export function EditServicesModal({
                       onUpdateNegotiated={(v) => updateNegotiatedValue(sv.instanceId, v)}
                       onUpdateReason={(r) => updateNegotiationReason(sv.instanceId, r)}
                       onUpdateManual={(v) => updateManualValue(sv.instanceId, v)}
+                      onUpdateCollateral={(v) => updateCollateral(sv.instanceId, v)}
                     />
                   ))}
 
@@ -534,6 +547,7 @@ function ServiceCard({
   onUpdateNegotiated,
   onUpdateReason,
   onUpdateManual,
+  onUpdateCollateral,
 }: {
   sv: SelectedService;
   propertyLabels?: string[];
@@ -542,6 +556,7 @@ function ServiceCard({
   onUpdateNegotiated: (value: number) => void;
   onUpdateReason: (reason: string) => void;
   onUpdateManual: (value: number) => void;
+  onUpdateCollateral: (value: string) => void;
 }) {
   const needsNegotiationReason =
     sv.calculatedValue !== null && sv.negotiatedValue !== sv.calculatedValue;
@@ -637,6 +652,22 @@ function ServiceCard({
           </div>
         )}
       </div>
+
+      {sv.service.priceType === "percent" && (
+        <div className="mt-3 flex flex-col gap-1">
+          <label className="text-xs text-gray-600 font-medium">
+            Garantia do financiamento
+            <span className="text-gray-400 font-normal ml-1">(descreva o bem dado em garantia)</span>
+          </label>
+          <input
+            type="text"
+            value={sv.collateral}
+            onChange={(e) => onUpdateCollateral(e.target.value)}
+            className="border border-gray-200 rounded px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-[var(--signal-500)]"
+            placeholder="Ex: Hipoteca do Imóvel — Fazenda São João, matrícula 12345"
+          />
+        </div>
+      )}
     </div>
   );
 }

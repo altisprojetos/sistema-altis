@@ -342,6 +342,7 @@ export async function createProcess(data: {
     squareMeters?: number;
     confrontantes?: number;
     financedValue?: number;
+    collateral?: string;
     clientPropertyId?: string | null;
     propertyIds?: string[];
   }>;
@@ -378,6 +379,7 @@ export async function createProcess(data: {
           squareMeters: sv.squareMeters,
           confrontantes: sv.confrontantes,
           financedValue: sv.financedValue,
+          collateral: sv.collateral ?? null,
           clientPropertyId: sv.clientPropertyId ?? null,
           propertyIds: sv.propertyIds ? JSON.stringify(sv.propertyIds) : null,
         })),
@@ -681,6 +683,7 @@ export async function updateProcessServices(
     squareMeters?: number;
     confrontantes?: number;
     financedValue?: number;
+    collateral?: string;
     clientPropertyId?: string | null;
     propertyIds?: string[];
   }>
@@ -715,6 +718,7 @@ export async function updateProcessServices(
         squareMeters: sv.squareMeters ?? null,
         confrontantes: sv.confrontantes ?? null,
         financedValue: sv.financedValue ?? null,
+        collateral: sv.collateral ?? null,
         clientPropertyId: sv.clientPropertyId ?? null,
         propertyIds: sv.propertyIds ? JSON.stringify(sv.propertyIds) : null,
       })),

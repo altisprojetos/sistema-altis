@@ -134,6 +134,7 @@ model ProcessService {
   negotiationReason String?
   clientPropertyId  String?
   propertyIds       String?
+  collateral        String?
   clientProperty    ClientProperty? @relation(fields: [clientPropertyId], references: [id])
   process           Process         @relation(fields: [processId], references: [id], onDelete: Cascade)
 }

@@ -263,6 +263,7 @@ export default async function ProcessoDetalhePage({
                 hectares: number | null;
                 squareMeters: number | null;
                 financedValue: number | null;
+                collateral: string | null;
               }) => (
                 <div key={sv.id} className="border border-gray-100 rounded-lg p-3 bg-gray-50">
                   <div className="flex items-start justify-between">
@@ -291,6 +292,12 @@ export default async function ProcessoDetalhePage({
                     {sv.squareMeters && <span>{sv.squareMeters} m²</span>}
                     {sv.financedValue && <span>Financiamento: {formatCurrency(sv.financedValue)}</span>}
                   </div>
+                  {sv.collateral && (
+                    <div className="mt-2 flex items-start gap-1.5 text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded px-2 py-1.5">
+                      <span className="font-semibold flex-none">Garantia:</span>
+                      <span>{sv.collateral}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
