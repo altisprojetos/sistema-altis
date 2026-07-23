@@ -10,6 +10,7 @@ import { DeleteButton } from "@/components/ui/DeleteButton";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import Link from "next/link";
+import { AddPropertyInline } from "./AddPropertyInline";
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
@@ -192,6 +193,9 @@ export default async function ClienteDetailPage({
                   </div>
                 ))}
               </div>
+              {!session.user.roles.includes("FINANCEIRO") && (
+                <AddPropertyInline clientId={client.id} />
+              )}
             </Card>
           ) : client.type === "RURAL" && (client.farmName || client.municipality || client.areaHa) ? (
             // Backward compat: clientes sem ClientProperty mas com campos legados
@@ -215,8 +219,23 @@ export default async function ClienteDetailPage({
                   </div>
                 )}
               </div>
+              {!session.user.roles.includes("FINANCEIRO") && (
+                <AddPropertyInline clientId={client.id} />
+              )}
             </Card>
-          ) : null}
+          ) : (
+            <Card>
+              <CardLabel>
+                {client.type === "RURAL" ? "Propriedades Rurais" : "Imóveis"}
+              </CardLabel>
+              <p className="text-sm mb-1" style={{ color: "var(--steel-400)" }}>
+                Nenhum imóvel cadastrado.
+              </p>
+              {!session.user.roles.includes("FINANCEIRO") && (
+                <AddPropertyInline clientId={client.id} />
+              )}
+            </Card>
+          )}
 
           {/* Histórico de processos */}
           <Card>

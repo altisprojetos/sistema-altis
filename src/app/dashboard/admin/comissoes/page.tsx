@@ -14,6 +14,23 @@ const DATE = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit"
 function fmt(v: number) { return BRL.format(v); }
 function fmtDate(d: Date | null | undefined) { return d ? DATE.format(new Date(d)) : "—"; }
 
+const COMMISSION_TYPE_LABELS: Record<string, { label: string; color: string }> = {
+  VENDA:             { label: "Venda",          color: "bg-blue-100 text-blue-700" },
+  OPERACAO:          { label: "Operação",        color: "bg-purple-100 text-purple-700" },
+  SUBORDINADO_VENDA: { label: "Sub. Vendedor",   color: "bg-orange-100 text-orange-700" },
+  SUBORDINADO_OPS:   { label: "Sub. Operador",   color: "bg-amber-100 text-amber-700" },
+  SUBORDINADO:       { label: "Subordinado",     color: "bg-gray-100 text-gray-600" },
+};
+
+function CommissionTypeBadge({ type }: { type: string }) {
+  const t = COMMISSION_TYPE_LABELS[type] ?? { label: type, color: "bg-gray-100 text-gray-600" };
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${t.color}`}>
+      {t.label}
+    </span>
+  );
+}
+
 type Commission = Awaited<ReturnType<typeof getCommissions>>[number];
 
 function groupByUser(commissions: Commission[]) {
@@ -235,6 +252,7 @@ export default async function ComissoesPage({
                     <tr>
                       <th className="text-left px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Cliente</th>
                       <th className="text-left px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Serviço</th>
+                      <th className="text-center px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Tipo</th>
                       <th className="text-right px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Comissão</th>
                       <th className="text-center px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Status</th>
                       <th className="text-right px-5 py-2.5 font-semibold text-gray-500 text-xs uppercase">Finalizado</th>
@@ -254,6 +272,9 @@ export default async function ComissoesPage({
                           <span className="truncate block">
                             {c.process.services.map((s) => s.serviceName).join(", ") || "—"}
                           </span>
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          <CommissionTypeBadge type={c.commissionType} />
                         </td>
                         <td className="px-5 py-3 text-right">
                           <p className="font-semibold">{fmt(c.amount)}</p>

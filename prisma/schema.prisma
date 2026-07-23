@@ -7,25 +7,31 @@ datasource db {
 }
 
 model User {
-  id                String          @id @default(cuid())
-  name              String
-  email             String          @unique
-  password          String
-  commissionRate    Float           @default(0)
-  active            Boolean         @default(true)
-  createdAt         DateTime        @default(now())
-  roles             Role[]
-  clientsSold       Client[]
-  clientNotes       ClientNote[]
-  commissions       Commission[]
-  approvedCosts     Cost[]          @relation("CostApprover")
-  costs             Cost[]          @relation("CostCreator")
-  processesAnalyzed Process[]       @relation("Analyst")
-  processesSold     Process[]       @relation("Seller")
-  tasksAssigned     Task[]          @relation("AssignedTo")
-  tasksCreated      Task[]          @relation("CreatedBy")
-  taskComments      TaskComment[]
-  timelineEntries   TimelineEntry[]
+  id                  String          @id @default(cuid())
+  name                String
+  email               String          @unique
+  password            String
+  commissionRate      Float           @default(0)
+  commissionRateOps   Float           @default(0)
+  commissionRateSubVenda Float          @default(0)
+  commissionRateSubOps   Float          @default(0)
+  managerId           String?
+  active              Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  roles               Role[]
+  manager             User?           @relation("UserManagement", fields: [managerId], references: [id])
+  subordinates        User[]          @relation("UserManagement")
+  clientsSold         Client[]
+  clientNotes         ClientNote[]
+  commissions         Commission[]
+  approvedCosts       Cost[]          @relation("CostApprover")
+  costs               Cost[]          @relation("CostCreator")
+  processesAnalyzed   Process[]       @relation("Analyst")
+  processesSold       Process[]       @relation("Seller")
+  tasksAssigned       Task[]          @relation("AssignedTo")
+  tasksCreated        Task[]          @relation("CreatedBy")
+  taskComments        TaskComment[]
+  timelineEntries     TimelineEntry[]
 }
 
 model Client {
@@ -230,6 +236,7 @@ model Commission {
   amount         Float
   originalAmount Float?
   adjustmentNote String?
+  commissionType String           @default("VENDA")
   status         CommissionStatus @default(PENDENTE)
   paidAt         DateTime?
   paidById       String?

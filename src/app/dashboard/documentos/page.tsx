@@ -149,7 +149,12 @@ export default async function DocumentosPage({
 
           {/* Documentos do processo */}
           {showDocs && processId && (
-            <DocumentFileGrid docs={fileData.docs} processId={processId} />
+            <DocumentFileGrid
+              docs={fileData.docs}
+              processId={processId}
+              properties={fileData.properties}
+              clientId={fileData.clientId}
+            />
           )}
 
           {/* Recibos de custos */}

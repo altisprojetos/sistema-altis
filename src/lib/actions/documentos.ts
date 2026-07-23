@@ -85,6 +85,30 @@ export async function replaceDocument(docId: string, newUrl: string, newFileName
   }
 }
 
+export async function updateDocumentClassification(
+  docId: string,
+  docNumber: number,
+  docName: string,
+  propertyIndex: number,
+) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
+  if (!session.user.roles.some(r => ["ADMIN", "VENDEDOR", "OPERADOR"].includes(r))) throw new Error("Sem permissão");
+
+  await prisma.document.update({
+    where: { id: docId },
+    data: { docNumber, docName, propertyIndex },
+  });
+
+  const doc = await prisma.document.findUnique({ where: { id: docId }, select: { processId: true } });
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath(`/dashboard/documentos`);
+  if (doc?.processId) {
+    revalidatePath(`/dashboard/vendas/${doc.processId}`);
+    revalidatePath(`/dashboard/operacao/${doc.processId}`);
+  }
+}
+
 export async function updateDocumentDescription(docId: string, description: string) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
@@ -128,22 +152,106 @@ export async function getProcessDocuments(processId: string) {
   const session = await auth();
   if (!session) throw new Error("Não autorizado");
 
-  const docs = await prisma.document.findMany({
-    where: { processId },
-    orderBy: { uploadedAt: "desc" },
-  });
+  const [docs, receipts, process] = await Promise.all([
+    prisma.document.findMany({
+      where: { processId },
+      orderBy: { uploadedAt: "desc" },
+    }),
+    prisma.cost.findMany({
+      where: { processId, receiptUrl: { not: null } },
+      select: {
+        id: true,
+        description: true,
+        receiptUrl: true,
+        date: true,
+        user: { select: { name: true } },
+      },
+      orderBy: { date: "desc" },
+    }),
+    prisma.process.findUnique({
+      where: { id: processId },
+      select: {
+        clientId: true,
+        client: {
+          select: {
+            properties: {
+              orderBy: { index: "asc" },
+              select: { id: true, index: true, farmName: true, municipality: true, areaHa: true },
+            },
+          },
+        },
+      },
+    }),
+  ]);
 
-  const receipts = await prisma.cost.findMany({
-    where: { processId, receiptUrl: { not: null } },
-    select: {
-      id: true,
-      description: true,
-      receiptUrl: true,
-      date: true,
-      user: { select: { name: true } },
+  return {
+    docs,
+    receipts,
+    properties: process?.client.properties ?? [],
+    clientId:   process?.clientId ?? "",
+  };
+}
+
+export async function addDocumentFromExplorer(data: {
+  processId: string;
+  docNumber: number;
+  docName: string;
+  propertyIndex: number;
+  description?: string;
+  fileName: string;
+  url: string;
+}) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
+  if (!session.user.roles.some(r => ["ADMIN", "VENDEDOR", "OPERADOR"].includes(r))) throw new Error("Sem permissão");
+
+  await prisma.document.create({
+    data: {
+      processId:     data.processId,
+      docNumber:     data.docNumber,
+      docName:       data.docName,
+      fileName:      data.fileName,
+      url:           data.url,
+      propertyIndex: data.propertyIndex,
+      description:   data.description || null,
+      uploadedBy:    session.user.id,
     },
-    orderBy: { date: "desc" },
   });
 
-  return { docs, receipts };
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath(`/dashboard/documentos`);
+  revalidatePath(`/dashboard/vendas/${data.processId}`);
+  revalidatePath(`/dashboard/operacao/${data.processId}`);
+}
+
+export async function addClientProperty(data: {
+  clientId: string;
+  farmName: string;
+  municipality?: string;
+  areaHa?: number;
+}) {
+  const session = await auth();
+  if (!session) throw new Error("Não autorizado");
+  if (!session.user.roles.some(r => ["ADMIN", "VENDEDOR", "OPERADOR"].includes(r))) throw new Error("Sem permissão");
+
+  const existing = await prisma.clientProperty.findMany({
+    where: { clientId: data.clientId },
+    select: { index: true },
+    orderBy: { index: "desc" },
+  });
+  const nextIndex = (existing[0]?.index ?? 0) + 1;
+
+  await prisma.clientProperty.create({
+    data: {
+      clientId:     data.clientId,
+      index:        nextIndex,
+      farmName:     data.farmName,
+      municipality: data.municipality || null,
+      areaHa:       data.areaHa ?? null,
+    },
+  });
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath(`/dashboard/documentos`);
+  revalidatePath(`/dashboard/clientes/${data.clientId}`);
 }

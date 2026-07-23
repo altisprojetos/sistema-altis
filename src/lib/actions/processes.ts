@@ -143,8 +143,20 @@ export async function finalizeProcess(data: {
   const process = await prisma.process.findUnique({
     where: { id: data.processId },
     include: {
-      seller: { select: { id: true, commissionRate: true } },
-      analyst: { select: { id: true, commissionRate: true } },
+      seller: {
+        select: {
+          id: true, commissionRate: true, commissionRateOps: true,
+          managerId: true,
+          manager: { select: { id: true, commissionRateSubVenda: true, commissionRateSubOps: true } },
+        },
+      },
+      analyst: {
+        select: {
+          id: true, commissionRate: true, commissionRateOps: true,
+          managerId: true,
+          manager: { select: { id: true, commissionRateSubVenda: true, commissionRateSubOps: true } },
+        },
+      },
       services: { select: { negotiatedValue: true } },
     },
   });
@@ -169,20 +181,54 @@ export async function finalizeProcess(data: {
   }
 
   // Comissões
-  const commissions: { userId: string; processId: string; amount: number }[] = [];
+  type CommissionEntry = { userId: string; processId: string; amount: number; commissionType: string };
+  const commissions: CommissionEntry[] = [];
+
+  // Comissão de venda (vendedor / coordenador como vendedor)
   if (process.seller?.commissionRate) {
     commissions.push({
       userId: process.seller.id,
       processId: data.processId,
       amount: totalValue * (process.seller.commissionRate / 100),
+      commissionType: "VENDA",
     });
+    // Comissão por subordinado-vendedor para o coordenador gestor do vendedor
+    if (process.seller.manager?.commissionRateSubVenda) {
+      commissions.push({
+        userId: process.seller.manager.id,
+        processId: data.processId,
+        amount: totalValue * (process.seller.manager.commissionRateSubVenda / 100),
+        commissionType: "SUBORDINADO_VENDA",
+      });
+    }
   }
-  if (process.analyst?.commissionRate) {
+
+  // Comissão de operação (operador / coordenador como elaborador)
+  const analystOpsRate = (process.analyst?.commissionRateOps ?? 0) > 0
+    ? process.analyst!.commissionRateOps
+    : (process.analyst?.commissionRate ?? 0);
+  if (process.analyst && analystOpsRate > 0) {
     commissions.push({
       userId: process.analyst.id,
       processId: data.processId,
-      amount: totalValue * (process.analyst.commissionRate / 100),
+      amount: totalValue * (analystOpsRate / 100),
+      commissionType: "OPERACAO",
     });
+    // Comissão por subordinado-operador para o coordenador gestor do analista
+    if (process.analyst.manager?.commissionRateSubOps) {
+      const managerId = process.analyst.manager.id;
+      const alreadyAdded = commissions.some(
+        c => c.userId === managerId && c.commissionType === "SUBORDINADO_OPS",
+      );
+      if (!alreadyAdded) {
+        commissions.push({
+          userId: managerId,
+          processId: data.processId,
+          amount: totalValue * (process.analyst.manager.commissionRateSubOps / 100),
+          commissionType: "SUBORDINADO_OPS",
+        });
+      }
+    }
   }
 
   await prisma.$transaction([

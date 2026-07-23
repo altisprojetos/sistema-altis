@@ -63,7 +63,13 @@ export async function GET(
 
   const rec = await prisma.process.findUnique({
     where: { id },
-    include: {
+    select: {
+      id: true,
+      sellerId: true,
+      paymentLabel: true,
+      paymentMethod: true,
+      installments: true,
+      expectedCompletionDate: true,
       client: { include: { properties: { take: 1, orderBy: { index: "asc" } } } },
       seller: { select: { name: true } },
       services: { select: { serviceName: true, serviceGroup: true, negotiatedValue: true, financedValue: true }, orderBy: { id: "asc" } },

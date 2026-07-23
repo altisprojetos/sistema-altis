@@ -32,8 +32,33 @@ export async function getUserById(id: string) {
     where: { id },
     select: {
       id: true, name: true, email: true, roles: true,
-      commissionRate: true, active: true, createdAt: true,
+      commissionRate: true, commissionRateOps: true,
+      commissionRateSubVenda: true, commissionRateSubOps: true,
+      managerId: true, active: true, createdAt: true,
+      subordinates: { select: { id: true } },
     },
+  });
+}
+
+export async function getCoordinators() {
+  await requireAdmin();
+  return prisma.user.findMany({
+    where: { roles: { has: "COORDENADOR" }, active: true },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function getSubordinateCandidates() {
+  await requireAdmin();
+  return prisma.user.findMany({
+    where: {
+      active: true,
+      roles: { hasSome: ["VENDEDOR", "OPERADOR"] },
+      NOT: { roles: { has: "COORDENADOR" } },
+    },
+    select: { id: true, name: true, roles: true, managerId: true },
+    orderBy: { name: "asc" },
   });
 }
 
@@ -43,6 +68,11 @@ export async function createUser(data: {
   password: string;
   roles: Role[];
   commissionRate: number;
+  commissionRateOps: number;
+  commissionRateSubVenda: number;
+  commissionRateSubOps: number;
+  managerId?: string | null;
+  subordinateIds?: string[];
 }) {
   await requireAdmin();
 
@@ -50,15 +80,26 @@ export async function createUser(data: {
   if (existing) return { error: "E-mail já cadastrado" };
 
   const hash = await bcrypt.hash(data.password, 12);
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       name: data.name,
       email: data.email,
       password: hash,
       roles: data.roles,
-      commissionRate: data.commissionRate,
+      commissionRate:        data.commissionRate,
+      commissionRateOps:     data.commissionRateOps,
+      commissionRateSubVenda: data.commissionRateSubVenda,
+      commissionRateSubOps:  data.commissionRateSubOps,
+      managerId: data.managerId || null,
     },
   });
+
+  if (data.subordinateIds?.length) {
+    await prisma.user.updateMany({
+      where: { id: { in: data.subordinateIds } },
+      data: { managerId: user.id },
+    });
+  }
 
   revalidatePath("/dashboard/admin/usuarios");
   return { success: true };
@@ -71,6 +112,11 @@ export async function updateUser(
     email: string;
     roles: Role[];
     commissionRate: number;
+    commissionRateOps: number;
+    commissionRateSubVenda: number;
+    commissionRateSubOps: number;
+    managerId?: string | null;
+    subordinateIds?: string[];
     active: boolean;
     newPassword?: string;
   }
@@ -81,7 +127,11 @@ export async function updateUser(
     name: data.name,
     email: data.email,
     roles: data.roles,
-    commissionRate: data.commissionRate,
+    commissionRate:        data.commissionRate,
+    commissionRateOps:     data.commissionRateOps,
+    commissionRateSubVenda: data.commissionRateSubVenda,
+    commissionRateSubOps:  data.commissionRateSubOps,
+    managerId: data.managerId || null,
     active: data.active,
   };
 
@@ -94,6 +144,21 @@ export async function updateUser(
   } catch {
     return { error: "Erro ao atualizar usuário." };
   }
+
+  // Atualiza subordinados: remove vínculo dos que saíram, adiciona aos novos
+  if (data.subordinateIds !== undefined) {
+    await prisma.user.updateMany({
+      where: { managerId: id, id: { notIn: data.subordinateIds } },
+      data: { managerId: null },
+    });
+    if (data.subordinateIds.length > 0) {
+      await prisma.user.updateMany({
+        where: { id: { in: data.subordinateIds } },
+        data: { managerId: id },
+      });
+    }
+  }
+
   revalidatePath("/dashboard/admin/usuarios");
   revalidatePath(`/dashboard/admin/usuarios/${id}`);
   return { success: true };
